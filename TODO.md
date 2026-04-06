@@ -329,5 +329,204 @@ CREATE TABLE notification_settings (
 - All features should be backward compatible with existing data
 - Implement proper migration scripts for database schema changes
 - Update README.md after each feature implementation
-- Write tests for new functionality before deployment
-- Follow existing code patterns and style conventions
+   - Write tests for new functionality before deployment
+   - Follow existing code patterns and style conventions
+
+---
+
+## 🚧 Pending Features (MCP Server & Agent API)
+
+### ID: 22 - MCP Server & Agent API Integration
+**Status:** Pending
+
+**Description:**
+Create an MCP (Model Context Protocol) server and dedicated API endpoints for 
+agent integration, allowing AI agents (like Hermes Agent) to interact with the
+SSL certificate monitoring system programmatically.
+
+**Required Features:**
+
+1. **MCP Server Implementation:**
+   - **Server:** `sslc-mcp-server` or similar
+   - **Protocol:** Model Context Protocol
+   - **Connectivity:** Hermes Agent, custom client, or web-based interface
+   - **Transport:** Stdio or HTTP-based MCP server
+
+2. **MCP Tools/Functions:**
+   ```python
+   # Tool: add_ssl_certificate
+   "description": "Add a new SSL certificate to monitor"
+   "inputSchema": {
+       "fqdn": "string - The domain name to monitor (e.g., example.com)",
+       "customer_number": "string - Optional customer ID",
+       "customer_name": "string - Optional customer name",
+       "port": "integer - Port number (default: 443)"
+   }
+
+   # Tool: list_ssl_certificates
+   "description": "List all monitored SSL certificates"
+   "inputSchema": {
+       "sort_by": "string - Sort field (expiry, fqdn, customer_name, days_remaining)",
+       "sort_order": "string - 'asc' or 'desc'",
+       "limit": "integer - Limit results"
+   }
+
+   # Tool: get_certificate_details
+   "description": "Get detailed SSL certificate information for a domain"
+   "inputSchema": {
+       "fqdn": "string - The domain name"
+   }
+
+   # Tool: delete_certificate
+   "description": "Remove a certificate from monitoring"
+   "inputSchema": {
+       "id": "integer - Certificate ID to delete"
+   }
+
+   # Tool: refresh_certificate
+   "description": "Force immediate SSL certificate check"
+   "inputSchema": {
+       "fqdn": "string - The domain name"
+   }
+   ```
+
+3. **Advanced Query API:**
+   - **Endpoint:** `GET /api/query/expiring`
+   - **Purpose:** Find certificates expiring in specific timeframe
+   - **Parameters:**
+     ```
+     GET /api/query/expiring?days=60
+     # Returns: All certificates expiring in next 60 days
+     ```
+   
+   - **Query Examples:**
+     - "Which certificates are expiring in the next 2 months?"
+     - "Show certificates expiring in less than 30 days"
+     - "List all expired certificates"
+     - "Find certificates with less than 90 days remaining"
+     - "Get certificates for specific customer (filter by customer_name)"
+
+4. **Natural Language Query Interface:**
+   ```python
+   # AI Agent can ask:
+   "Which SSL certificates are expiring in the next 2 months?"
+   # Returns formatted response with certificate details
+   ```
+
+5. **Agent Integration Workflow:**
+   - Agent queries MCP server via stdio or HTTP
+   - Agent receives JSON responses with certificate data
+   - Agent can:
+     - Add new certificates to monitor
+     - Query certificates by expiration date
+     - Get full certificate details
+     - Trigger manual certificate refreshes
+     - Delete certificates from monitoring
+
+6. **Example Agent Query Flow:**
+   ```
+   User: "Check all SSL certificates and report any expiring soon"
+   Agent → MCP Server → list_ssl_certificates()
+   MCP Server → returns sorted list
+   Agent → filters for days<90
+   Agent → report: "3 certificates expiring in next 90 days"
+   ```
+
+7. **API Enhancements:**
+   - **New Query Endpoints:**
+     - `GET /api/query/expiring?days=N` - Certificates expiring in N days
+     - `GET /api/query/expired` - All expired certificates
+     - `GET /api/query/customer?name=NAME` - Certificates for customer
+   
+   - **Batch Operations:**
+     - `POST /api/bulk/add` - Add multiple certificates at once
+     - `POST /api/bulk/refresh` - Refresh all certificates
+
+**Integration with Hermes Agent:**
+- MCP server running as standalone service
+- Hermes Agent connects via MCP protocol
+- Agent can query: "Show me certificates expiring in 60 days"
+- Agent receives structured JSON response
+- Agent can generate reports in natural language
+
+**Technical Requirements:**
+- Python MCP server framework (mcp-server or similar)
+- HTTP-based MCP client/server architecture
+- Integration with existing SSL checker module
+- Authentication via API keys or environment variables
+- Logging and audit trail for agent actions
+
+**Security Considerations:**
+- API key authentication for MCP server
+- Rate limiting for agent queries
+- Input validation for user-submitted FQDNs
+- Authorization for agent operations
+
+**Example MCP Server Code Structure:**
+```python
+from mcp import Server
+from ssl_checker import get_ssl_info, get_db
+
+server = Server("ssl-cert-monitor")
+
+@server.tool()
+def add_certificate(fqdn: str, customer_number: str = "", customer_name: str = ""):
+    """Add a new SSL certificate to monitor"""
+    # Implementation here
+
+@server.tool()
+def list_certificates(sort_by: str = "expiry", sort_order: str = "asc"):
+    """List all monitored certificates"""
+    # Implementation here
+
+@server.tool()
+def query_expiring(days: int = 30):
+    """Get certificates expiring in specified number of days"""
+    # Implementation with SQL query filtering
+```
+
+**Usage Example for Agent:**
+```
+Agent: "I need to find certificates expiring soon"
+Agent calls MCP Server tool: query_expiring(days=60)
+MCP Server returns:
+{
+    "certificates": [
+        {"fqdn": "example.com", "expiry": "2026-06-15", "days_left": 70},
+        {"fqdn": "api.example.org", "expiry": "2026-05-20", "days_left": 45}
+    ]
+}
+Agent reports: "Found 2 certificates expiring in the next 60 days"
+```
+
+**Database Queries:**
+```sql
+-- Certificates expiring in N days
+SELECT * FROM urls u
+LEFT JOIN ssl_cache sc ON u.fqdn LIKE '%' || sc.fqdn || '%'
+WHERE sc.days_remaining IS NOT NULL 
+  AND sc.days_remaining <= 60
+ORDER BY sc.days_remaining ASC;
+
+-- All expired certificates
+SELECT * FROM urls u
+LEFT JOIN ssl_cache sc ON u.fqdn LIKE '%' || sc.fqdn || '%'
+WHERE sc.days_remaining IS NOT NULL 
+  AND sc.days_remaining < 0
+ORDER BY sc.days_remaining ASC;
+
+-- Certificates for specific customer
+SELECT * FROM urls
+WHERE customer_name LIKE '%customer_name%'
+ORDER BY created_at DESC;
+```
+
+---
+
+## 📝 Implementation Notes
+
+- Prioritize MCP server development for agent integration
+- Ensure backward compatibility with existing web interface
+- Write comprehensive documentation for MCP API usage
+- Include examples of agent queries and expected outputs
+- Plan for future MCP protocol extensions (real-time updates, etc.)
