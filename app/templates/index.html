@@ -189,7 +189,12 @@
                         </thead>
                         <tbody>
                             {% for url in urls %}
-                            <tr class="{{ 'expired' if url.days_remaining is defined and url.days_remaining < 0 else 'expiring-soon' if url.days_remaining is defined and url.days_remaining < 30 else url.status if url.status is defined else 'active' }}">
+                            <tr class="{{ 
+                                'expired' if url.days_remaining is not none and url.days_remaining < 0
+                                else 'expiring-soon' if url.days_remaining is not none and url.days_remaining < 30
+                                else 'warning' if url.days_remaining is not none and url.days_remaining < 90
+                                else 'active'
+                            }}">
                                 <td>
                                     <i class="bi bi-globe"></i>
                                     <a href="{{ url.fqdn }}" target="_blank">{{ url.fqdn }}</a>
@@ -204,19 +209,14 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if url.days_remaining is defined and url.days_remaining is not none %}
-                                        <span class="badge 
-                                            {% if url.days_remaining < 0 %}bg-danger
-                                            {% elif url.days_remaining < 30 %}bg-warning
-                                            {% elif url.days_remaining < 90 %}bg-info
-                                            {% else %}bg-success
-                                            {% endif %}">
-                                            {% if url.days_remaining < 0 %}
-                                                {{ url.days_remaining }} days
-                                            {% else %}
-                                                {{ url.days_remaining }} days
-                                            {% endif %}
-                                        </span>
+                                    {% if url.days_remaining is not none and url.days_remaining < 0 %}
+                                        <span class="badge bg-danger">{{ url.days_remaining }} days</span>
+                                    {% elif url.days_remaining is not none and url.days_remaining < 30 %}
+                                        <span class="badge bg-warning">{{ url.days_remaining }} days</span>
+                                    {% elif url.days_remaining is not none and url.days_remaining < 90 %}
+                                        <span class="badge bg-info">{{ url.days_remaining }} days</span>
+                                    {% elif url.days_remaining is not none %}
+                                        <span class="badge bg-success">{{ url.days_remaining }} days</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
