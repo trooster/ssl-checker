@@ -40,8 +40,10 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
                 # Extract issuer information
                 issuer_dict = {}
                 for issuer_entry in cert.get('issuer', []):
-                    key, value = issuer_entry[0], issuer_entry[1]
-                    issuer_dict[key] = value
+                    for sub_entry in issuer_entry:
+                        if isinstance(sub_entry, tuple) and len(sub_entry) >= 2:
+                            key, value = sub_entry[0], sub_entry[1]
+                            issuer_dict[key] = value
                 
                 issuer_name = extract_issuer_name(issuer_dict)
                 issuer_type = determine_issuer_type(issuer_dict, issuer_name)

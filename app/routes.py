@@ -25,13 +25,13 @@ def index():
             u.customer_number,
             u.customer_name,
             COALESCE(sc.issuer, 'Unknown') as issuer,
-            COALESCE(sc.issuer_type, 'unknown') as issuer_type,
+            COALESCE(sc.issuer_type, 'unknown') as issuer_type,  
             COALESCE(sc.expiry_date, 'N/A') as expiry_date,
             COALESCE(sc.days_remaining, null) as days_remaining,
             COALESCE(sc.checked_at, 'Never') as checked_at,
             COALESCE(sc.status, 'unknown') as status
         FROM urls u
-        LEFT JOIN ssl_cache sc ON u.fqdn = sc.fqdn
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
     '''
     
     # Add sorting - support days_remaining, customer_name, fqdn
@@ -89,7 +89,7 @@ def get_urls():
             COALESCE(sc.checked_at, 'Never') as checked_at,
             COALESCE(sc.status, 'unknown') as status
         FROM urls u
-        LEFT JOIN ssl_cache sc ON u.fqdn = sc.fqdn
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
     '''
     
     sort_mappings = {
@@ -223,15 +223,19 @@ def delete_url(url_id):
 @main_bp.route('/api/certs/<string:fqdn>/refresh', methods=['POST'])
 def refresh_cert(fqdn):
     """API endpoint to force refresh SSL certificate for a specific domain"""
+    from .ssl_checker import extract_domain
     try:
         db = get_db()
         cert_info, error = get_ssl_info(fqdn)
         
         if cert_info:
+            # Use the extracted domain name for matching (without https://)
+            domain_name = cert_info['fqdn']
+            
             # Update or insert cache entry
             existing = db.execute(
-                'SELECT id FROM ssl_cache WHERE fqdn = ?',
-                (fqdn,)
+                'SELECT id FROM ssl_cache WHERE fqdn LIKE ?',
+                (f'%{domain_name}%',)
             ).fetchone()
             
             if existing:
