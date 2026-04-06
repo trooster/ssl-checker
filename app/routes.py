@@ -1,7 +1,7 @@
 """
 Main request routes and API endpoints
 """
-from flask import Blueprint, render_template, request, jsonify, g, current_app
+from flask import Blueprint, render_template, request, jsonify, g, current_app, redirect, url_for, flash
 from .database import get_db
 from .ssl_checker import get_ssl_info, extract_domain
 
@@ -52,14 +52,67 @@ def index():
     return render_template('index.html', urls=urls, sort_by=sort_by, sort_order=sort_order)
 
 
-@main_bp.route('/admin')
+@main_bp.route('/admin', methods=['GET', 'POST'])
 def admin():
     """Admin page for managing URLs"""
     url_id = request.args.get('edit', type=int)
+    delete_id = request.args.get('delete', type=int)
     edit_url = {}
+    db = get_db()
+    
+    if request.method == 'GET' and delete_id:
+        # Handle deletion
+        db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
+        db.commit()
+        return redirect(url_for('main.admin'))
+    
+    if request.method == 'POST' and url_id:
+        # Handle form submission
+        data = request.form
+        
+        # Check if URL already exists (for updates)
+        existing = db.execute(
+            'SELECT id FROM urls WHERE fqdn = ? AND id != ?',
+            (data['fqdn'], url_id)
+        ).fetchone()
+        
+        if existing:
+            flash('URL already exists', 'error')
+        
+        # Update the URL
+        db.execute('''
+            UPDATE urls 
+            SET fqdn = ?,
+                customer_number = ?,
+                customer_name = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (data['fqdn'], data.get('customer_number', ''), data.get('customer_name', ''), url_id))
+        db.commit()
+        return redirect(url_for('main.admin'))
+    
+    if request.method == 'POST':
+        # Handle new URL addition
+        data = request.form
+        
+        # Check if URL already exists
+        existing = db.execute(
+            'SELECT id FROM urls WHERE fqdn = ?',
+            (data['fqdn'],)
+        ).fetchone()
+        
+        if existing:
+            flash('URL already exists', 'error')
+        else:
+            db.execute('''
+                INSERT INTO urls (fqdn, customer_number, customer_name)
+                VALUES (?, ?, ?)
+            ''', (data['fqdn'], data.get('customer_number', ''), data.get('customer_name', '')))
+            db.commit()
+        
+        return redirect(url_for('main.admin'))
     
     if url_id:
-        db = get_db()
         edit_url = db.execute(
             'SELECT * FROM urls WHERE id = ?',
             (url_id,)

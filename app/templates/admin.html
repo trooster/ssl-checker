@@ -80,6 +80,7 @@
                         </h4>
 
                         <form method="POST" action="/admin" class="row g-3">
+                            <input type="hidden" name="" value="admin">
                             <div class="col-md-8">
                                 <label for="fqdn" class="form-label">URL (FQDN)</label>
                                 <input type="text" class="form-control form-control-lg" id="fqdn" 
@@ -112,9 +113,9 @@
                             <div class="col-12">
                                 <div class="alert alert-info">
                                     <i class="bi bi-lightbulb"></i>
-                                    <strong>Tip:</strong> Beide klantnummere en klantnaam zijn optioneel.
+                                    <strong>Tip:</strong> Beide klantnummer en klantnaam zijn optioneel.
                                     Het systeem zal automatisch de SSL certificaat gegevens controleren
-                                    en toekennissen na het bewaren.
+                                    en tonen na het bewaren.
                                 </div>
                             </div>
 
@@ -143,6 +144,19 @@
                                     <div class="col-md-6">
                                         <p><strong>Created:</strong> {{ edit_url['created_at'] }}</p>
                                         <p><strong>Updated:</strong> {{ edit_url['updated_at'] }}</p>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="alert alert-danger d-inline-block">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            <strong>Aktie:</strong>
+                                            <form action="/admin?delete={{ edit_url['id'] }}" method="POST" class="d-inline" onsubmit="return confirm('Weet u zeker dat u dit certificaat wilt verwijderen?')">
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="bi bi-trash"></i> Delete Certificate
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
