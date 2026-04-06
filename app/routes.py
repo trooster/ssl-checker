@@ -61,7 +61,14 @@ def admin():
     db = get_db()
     
     if request.method == 'GET' and delete_id:
-        # Handle deletion
+        # Handle deletion via GET parameters
+        db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
+        db.commit()
+        flash('Certificate deleted successfully', 'success')
+        return redirect(url_for('main.admin'))
+    
+    if request.method == 'POST' and delete_id:
+        # Handle deletion via POST from form submission
         db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
         db.commit()
         flash('Certificate deleted successfully', 'success')
