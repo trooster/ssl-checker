@@ -64,6 +64,7 @@ def admin():
         # Handle deletion
         db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
         db.commit()
+        flash('Certificate deleted successfully', 'success')
         return redirect(url_for('main.admin'))
     
     if request.method == 'POST' and url_id:
@@ -77,7 +78,8 @@ def admin():
         ).fetchone()
         
         if existing:
-            flash('URL already exists', 'error')
+            flash('URL already exists, cannot update', 'error')
+            return redirect(url_for('main.admin', edit=url_id))
         
         # Update the URL
         db.execute('''
@@ -89,6 +91,7 @@ def admin():
             WHERE id = ?
         ''', (data['fqdn'], data.get('customer_number', ''), data.get('customer_name', ''), url_id))
         db.commit()
+        flash('Certificate updated successfully', 'success')
         return redirect(url_for('main.admin'))
     
     if request.method == 'POST':
