@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  ssl-monitor:
+    build: .
+    ports:
+      - "4444:4444"
+    environment:
+      - DATABASE_URI=sqlite:///data/ssl_monitor.db
+      - CACHE_EXPIRATION_HOURS=24
+      - SECRET_KEY=your-secret-key-change-in-production
+    volumes:
+      - ssl-data:/app/data
+      - ssl-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:4444/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  ssl-data:
+  ssl-logs:

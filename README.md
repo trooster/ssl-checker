@@ -1,2 +1,288 @@
-# ssl-checker
-Checks the expiry date of SSL certificates
+# SSL Certificate Monitor
+
+A web application for monitoring SSL certificate expiration dates across multiple domains with automatic caching and refresh scheduling.
+
+## Features
+
+- **SSL Certificate Monitoring**: Automatically checks SSL certificate expiration dates for multiple domains
+- **Smart Caching**: Smart caching strategy based on expiry dates:
+  - Critical certificates (< 30 days): Check hourly
+  - Warning certificates (30-90 days): Check every 12 hours  
+  - Safe certificates (> 90 days): Check daily
+- **Issuer Detection**: Automatically identifies certificate providers (Let's Encrypt, Sectigo, DigiCert, Comodo, GoDaddy, Cloudflare, etc.)
+- **Customizable Metadata**: Store customer numbers and names for each certificate
+- **Intuitive Dashboard**: Clean, responsive web interface with sortable columns and color-coded status indicators
+- **Real-time Updates**: Manual certificate refresh capability
+- **RESTful API**: Full CRUD operations via API endpoints
+
+## Quick Start
+
+### Using Docker (Recommended)
+
+1. **Clone the repository**:
+   ```bash
+   cd /home/joris/ssl-checker
+   ```
+
+2. **Build and start the container**:
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**:
+   - Open your browser and navigate to: `http://localhost:4444`
+   - Go to `/admin` to add certificates
+   - View SSL status on the main page
+
+4. **Stop the container**:
+   ```bash
+   docker-compose down
+   ```
+
+### Using Python Directly
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Run the application**:
+   ```bash
+   python run.py
+   ```
+
+3. **Access the application**:
+   - Open your browser and navigate to: `http://localhost:4444`
+
+## Usage
+
+### Adding Certificates
+
+1. Navigate to `/admin`
+2. Fill in the form:
+   - **FQDN**: The full URL (e.g., `https://example.com`) - required
+   - **Customer Number**: Optional identifier
+   - **Customer Name**: Optional name for the certificate owner
+3. Click "Add Certificate"
+
+### Viewing SSL Status
+
+The main dashboard displays:
+- All certificates sorted by expiration date (soonest first by default)
+- Days remaining until expiry (negative if expired)
+- Certificate issuer/type
+- Customer information (if provided)
+- Color-coded status indicators:
+  - 🔴 **Red**: Expired certificates
+  - 🟡 **Yellow**: Expiring within 30 days
+  - 🔵 **Blue**: Warning status (30-90 days remaining)
+  - 🟢 **Green**: Safe certificates (>90 days remaining)
+
+### Sorting and Filtering
+
+- Click on any column header to sort by that field
+- Toggle between ascending and descending order
+- Default sort: Days remaining ascending (expiring certificates first)
+
+### Manual Certificate Refresh
+
+Click the refresh icon (🔄) next to any certificate to force a manual SSL certificate check.
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URI` | Database location | `sqlite:///ssl_monitor.db` |
+| `CACHE_EXPIRATION_HOURS` | Cache refresh frequency | `24` |
+| `SECRET_KEY` | Flask secret key | Random generated |
+| `SLACK_WEBHOOK_URL` | Webhook for Slack notifications | Empty |
+
+### Adding Future Notifications
+
+To enable email/Slack notifications for expiring certificates (future enhancement):
+
+1. Add `SLACK_WEBHOOK_URL` environment variable
+2. Implement notification logic in `app/scheduler.py`
+3. Send alerts for certificates expiring within configured thresholds
+
+## API Endpoints
+
+### GET `/api/urls`
+
+Retrieve all URLs with SSL certificate information.
+
+**Query Parameters**:
+- `sort_by`: Field to sort by (`days_remaining`, `customer_name`, `fqdn`, `expiry_date`)
+- `sort_order`: Sort order (`asc`, `desc`)
+
+**Example**:
+```bash
+curl "http://localhost:4444/api/urls?sort_by=days_remaining&sort_order=asc"
+```
+
+### POST `/api/urls`
+
+Add a new URL to monitor.
+
+**Body**:
+```json
+{
+  "fqdn": "https://example.com",
+  "customer_number": "12345",
+  "customer_name": "Example Customer"
+}
+```
+
+### PUT `/api/urls/<id>`
+
+Update an existing URL.
+
+**Body**:
+```json
+{
+  "fqdn": "https://updated-domain.com",
+  "customer_name": "Updated Customer Name"
+}
+```
+
+### DELETE `/api/urls/<id>`
+
+Delete an URL to stop monitoring.
+
+### POST `/api/certs/<fqdn>/refresh`
+
+Force refresh SSL certificate information.
+
+## Project Structure
+
+```
+ssl-checker/
+├── app/
+│   ├── __init__.py         # Application factory
+│   ├── __main__.py         # Module entry point
+│   config.py               # Configuration settings
+│   database.py             # Database schema and operations
+│   ssl_checker.py          # SSL certificate checking logic
+│   scheduler.py            # Background task scheduler
+│   routes.py               # Web routes and API endpoints
+│   templates/
+│   │   ├── index.html      # Main dashboard
+│   │   └── admin.html      # Certificate management
+│   └── static/
+│       ├── css/           # Additional CSS files
+│       └── js/            # JavaScript files
+├── tests/
+│   ├── test_ssl_checker.py  # Unit tests
+│   └── test_api.py          # Integration tests
+├── data/                   # SQLite database file (auto-generated)
+├── logs/                   # Application logs
+├── docker-compose.yml      # Docker Compose configuration
+├── Dockerfile              # Dockerfile
+├── requirements.txt        # Python dependencies
+└── run.py                  # Application entry point
+```
+
+## Caching Strategy
+
+The application uses a smart caching system to reduce unnecessary SSL checks:
+
+1. **Initial Check**: When a certificate is added, it's checked immediately
+2. **Status Determination**: Based on days remaining:
+   - `< 30 days`: Critical status
+   - `30-90 days`: Warning status
+   - `> 90 days`: Safe status
+3. **Refresh Schedule**:
+   - Critical: Refresh every hour
+   - Warning: Refresh every 12 hours
+   - Safe: Refresh daily
+4. **Background Scheduler**: Automatically runs certificate checks based on status
+
+## Adding New Certificate Types
+
+To add support for new certificate authorities:
+
+1. Edit `app/ssl_checker.py`
+2. Add patterns to the `determine_issuer_type()` function
+3. Update the CSS styling to include badge styles for the new type
+
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test files
+python -m pytest tests/test_ssl_checker.py -v
+python -m pytest tests/test_api.py -v
+```
+
+### Testing SSL Certificate Checking (Manual)
+
+To test with real certificates:
+
+1. Start the application
+2. Add a known domain with a valid certificate
+3. Verify the certificate details appear correctly
+4. Check the caching schedule by inspecting logs
+
+## Troubleshooting
+
+### Common Issues
+
+**Database errors**:
+- Check that the `data/` directory is writable
+- Ensure database URI points to a valid location
+
+**SSL check failures**:
+- Verify the domain is accessible and has a valid SSL certificate
+- Check firewall rules and network connectivity
+
+**Container startup issues**:
+- Check logs: `docker-compose logs`
+- Ensure no other service is using port 4444
+- Verify environment variables are correctly set
+
+### Logs
+
+View application logs:
+```bash
+docker-compose logs -f ssl-monitor
+```
+
+## Security Considerations
+
+- Default SECRET_KEY should be changed in production
+- Consider implementing authentication for admin functions
+- Use HTTPS for the application itself in production
+- Regularly update Python dependencies
+
+## Future Enhancements
+
+- [ ] Email notifications for expiring certificates
+- [ ] Slack notifications integration
+- [ ] Historical certificate data reporting
+- [ ] Certificate renewal automation
+- [ ] Bulk operations (import/export)
+- [ ] Multiple language support
+- [ ] Export to CSV/PDF
+- [ ] Certificate hierarchy visualization
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
+
+## License
+
+This project is open source and available for personal and commercial use.
+
+## Support
+
+For issues or questions, please create an issue on the project repository.
