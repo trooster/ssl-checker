@@ -119,8 +119,10 @@ def admin():
                 VALUES (?, ?, ?)
             ''', (data['fqdn'], data.get('customer_number', ''), data.get('customer_name', '')))
             db.commit()
+            flash('Certificate added successfully', 'success')
         
-        return redirect(url_for('main.admin'))
+        # Redirect to overview page after adding
+        return redirect(url_for('main.index'))
     
     if url_id:
         edit_url = db.execute(
@@ -203,18 +205,44 @@ def add_url():
         ''', (fqdn, customer_number, customer_name))
         db.commit()
         
-        # Immediately check the certificate
+        # Immediately check the certificate and save to cache
         cert_info, error = get_ssl_info(fqdn)
-        if cert_info and error:
-            print(f"Warning: Could not fetch SSL info for {fqdn}: {error}")
-        
+        if cert_info:
+            # Save certificate info to cache
+            domain_name = cert_info['fqdn']
+            existing = db.execute(
+                'SELECT id FROM ssl_cache WHERE fqdn LIKE ?',
+                (f'%{domain_name}%',)
+            ).fetchone()
+            
+            if existing:
+                # Update existing cache
+                db.execute('''
+                    UPDATE ssl_cache 
+                    SET issuer = ?,
+                        issuer_type = ?,
+                        expiry_date = ?,
+                        days_remaining = ?,
+                        checked_at = ?,
+                        status = ?
+                    WHERE id = ?
+                ''', ('Unknown', 'unknown', 'N/A', None, 'Never', 'unknown', existing[0]))
+            else:
+                # Insert new cache entry
+                db.execute('''
+                    INSERT INTO ssl_cache (fqdn, issuer, issuer_type, expiry_date, days_remaining, checked_at, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (domain_name, 'Unknown', 'unknown', 'N/A', None, 'Never', 'unknown'))
+            db.commit()
+            
         return jsonify({
             'success': True,
-            'message': 'URL added successfully',
+            'message': 'URL added and certificate initialized',
             'url_id': db.execute('SELECT last_insert_rowid()').fetchone()[0]
         }), 201
         
     except Exception as e:
+        db.rollback()
         return jsonify({'error': str(e)}), 500
 
 
