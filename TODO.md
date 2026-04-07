@@ -20,7 +20,7 @@
 
 ### API Endpoints
 - [x] GET /api/urls - Fetch all URLs with sorting
-- [x] POST /api/urls - Add new URL
+- [x] POST /api/urls - Add new URL (with validation)
 - [x] PUT /api/urls/<id> - Update URL
 - [x] DELETE /api/urls/<id> - Delete URL
 - [x] POST /api/certs/<fqdn>/refresh - Force certificate refresh
@@ -34,6 +34,7 @@
 - [x] Sortable columns (expiry date, customer name, FQDN, etc.)
 - [x] Enhanced SSL details modal with full certificate information
 - [x] Issuer name display (organization name only, no badge noise)
+- [x] URL validation feedback (success/failure messages)
 
 ### DevOps & Testing
 - [x] Docker container with Dockerfile and docker-compose.yml
@@ -90,6 +91,56 @@ Complete enhanced certificate details viewer with modal popup:
 - ✅ DigiCert: Shows "DigiCert EV RSA CA G2"
 - ✅ Cloudflare: Shows "Cloudflare TLS Issuing ECC CA 1"
 - ✅ Sectigo: Shows "Sectigo Public Server Authentication CA DV R36"
+
+---
+
+### ID: 19 - URL Validation System (COMPLETED ✅)
+
+**Status:** Completed
+
+**Description:** 
+Validate SSL URLs before saving to ensure they are valid and reachable.
+
+**Required Features:**
+1. **URL Format Validation:**
+   - ✅ Proper URL structure validation
+   - ✅ Protocol validation (https:// only)
+   - ✅ FQDN format validation (valid domain name characters)
+   - ✅ No consecutive dots, valid labels
+
+2. **Reachability Check:**
+   - ✅ TCP connection test to host:port
+   - ✅ SSL handshake verification
+   - ✅ User feedback with detailed error messages
+
+3. **User Feedback:**
+   - ✅ Loading indicator during validation
+   - ✅ Success message with certificate preview
+   - ✅ Error message with specific validation issues
+
+**Files Modified:**
+- `app/url_utils.py` - URL validation functions
+- `app/routes.py` - Validation before URL save
+
+---
+
+### ID: 20 - Custom Port Support (COMPLETED ✅)
+
+**Status:** Completed
+
+**Description:** 
+Allow users to specify a custom port for SSL checks.
+
+**Features:**
+- ✅ Custom port extraction from URLs (e.g., https://example.com:8443)
+- ✅ SSL checker uses custom port instead of hardcoded 443
+- ✅ Default to 443 if no port specified
+- ✅ Full integration with URL validation
+
+**Files Modified:**
+- `app/url_utils.py` - extract_port_from_url() function
+- `app/ssl_checker.py` - get_ssl_info() uses custom port
+- `app/routes.py` - Validation with custom port support
 - New API endpoint: `GET /api/certs/<fqdn>/details`
 - Enhanced ssl_checker.py with full certificate extraction
 - Enhanced certificate display template with modal component
