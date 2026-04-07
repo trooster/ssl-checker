@@ -258,9 +258,16 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge badge-{{ url.issuer_type }} badge-sm">
-                                        {{ url.issuer_type|title }}
-                                    </span>
+                                    {% if url.issuer %}
+                                        {% set issuer_name = url.issuer %}
+                                        {% set issuer_short = issuer_name|replace("Let's Encrypt", "LE")|replace("Sectigo Public Server", "Sectigo")|replace("DigiCert", "DigiCert")|replace("Cloudflare TLS Issuing", "Cloudflare")|replace("Secure Certificate", "Cert") %}
+                                        <span class="badge badge-{{ url.issuer_type|default('other') }} badge-sm" title="{{ url.issuer }}">
+                                            {{ issuer_short[:25] if issuer_short|length > 25 else issuer_short }}
+                                        </span>
+                                        <small class="text-muted ms-1">{{ url.issuer_type|title if url.issuer_type else 'Unknown' }}</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">

@@ -83,17 +83,22 @@ def extract_certificate_fields(issuer_entries):
 
 def extract_readable_name(issuer_dict):
     """Extract readable issuer name from certificate issuer dict, preserving order."""
-    # Common order: CN, Organization, Organizational Unit
+    # Try to get Organization (organizationName in camelCase format from getpeercert)
+    org_value = (
+        issuer_dict.get('O') or 
+        issuer_dict.get('ORGANIZATIONNAME') or 
+        issuer_dict.get('organizationName') or
+        ''
+    )
+    if org_value:
+        return org_value.strip()
+    
+    # Fallback to CN if O is not available
     cn_value = issuer_dict.get('CN') or issuer_dict.get('commonName') or ''
-    org_value = issuer_dict.get('O') or issuer_dict.get('ORGANIZATIONNAME') or ''
-    ou_value = issuer_dict.get('OU') or issuer_dict.get('ORGANIZATIONALUNITNAME') or ''
+    if cn_value:
+        return cn_value.strip()
     
-    parts = []
-    if cn_value: parts.append(cn_value)
-    if org_value: parts.append(org_value)
-    if ou_value: parts.append(ou_value)
-    
-    return ' - '.join(parts) if parts else 'Unknown Issuer'
+    return 'Unknown Issuer'
 
 
 def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
@@ -158,6 +163,47 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
                 for entry_type, entry_value in san_entries:
                     san_list.append(f"{entry_type}: {entry_value}")
                 san_string = '\n'.join(san_list)
+                
+                # Get full issuer name via openssl for better parsing
+                try:
+                    import subprocess
+                    import tempfile
+                    import os
+                    
+                    # Connect to get the certificate
+                    context = ssl.create_default_context()
+                    with socket.create_connection((domain, 443), timeout=10) as sock:
+                        with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                            der_cert = ssock.getpeercert(binary_form=True)
+                            if der_cert:
+                                # Write to temp file and use openssl
+                                with tempfile.NamedTemporaryFile(delete=False, suffix='.der') as tmp:
+                                    tmp.write(der_cert)
+                                    tmp.flush()
+                                    tmp_name = tmp.name
+                                
+                                try:
+                                    result = subprocess.run(
+                                        ['openssl', 'x509', '-noout', '-issuer', '-in', tmp_name],
+                                        capture_output=True, text=True, timeout=5
+                                    )
+                                    if result.returncode == 0:
+                                        issuer_line = result.stdout.strip()
+                                        # issuer_line looks like: "issuer=C=US, O=Let's Encrypt, CN=E8"
+                                        issuer_name = issuer_line.replace('issuer=', '').strip()
+                                        # Extract only the Organization (O=) part for cleaner display
+                                        org_match = re.search(r'O=([^,]+)', issuer_name)
+                                        if org_match:
+                                            issuer_name = org_match.group(1).strip()
+                                    else:
+                                        issuer_name = issuer_dict.get('O', issuer_dict.get('CN', 'Unknown'))
+                                finally:
+                                    os.unlink(tmp_name)
+                            else:
+                                issuer_name = issuer_dict.get('O', issuer_dict.get('CN', 'Unknown'))
+                except Exception:
+                    issuer_name = issuer_dict.get('O', issuer_dict.get('CN', 'Unknown'))
+
         
                 # Certificate PEM extraction - use openssl for full data
                 cert_pem = 'PLACEHOLDER: Use OpenSSL CLI to export actual PEM data'
