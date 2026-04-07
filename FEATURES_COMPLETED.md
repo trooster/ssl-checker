@@ -49,10 +49,18 @@
 - Default port 443 for HTTPS
 
 ### ✅ Feature #10: Expired Certificate Support (ID 21)
-- Negative days_remaining for expired certs (e.g., -10)
-- Red badge styling for expired status
-- 'expired' CSS class for row highlighting
-- Expiry date shown correctly in the past
+|- Negative days_remaining for expired certs (e.g., -10)
+|- Red badge styling for expired status
+|- 'expired' CSS class for row highlighting
+|- Expiry date shown correctly in the past
+
+### ✅ Feature #11: MCP Server Integration (ID 27)
+|- Native MCP SDK implementation using mcp.server module
+|- 8 MCP tools: add_certificate, list_certificates, get_certificate_details
+|- 8 MCP tools: refresh_certificate, delete_certificate, query_expiring, query_expired, query_customer
+|- Configuration in ~/.hermes/config.yaml
+|- /api/ping endpoint for health checks
+|- Docker MCP server support via stdio
 
 ## Documentation:
 
