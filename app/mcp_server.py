@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env /home/joris/ssl-checker/venv/bin/python3
 """
 MCP Server for SSL Certificate Monitor
 Implements the Model Context Protocol (MCP) for AI agent integration
