@@ -8,6 +8,94 @@ from typing import Optional, Dict, Tuple
 import re
 
 
+def extract_domain(url: str) -> str:
+    """
+    Extract domain name from URL.
+    
+    Args:
+        url: URL or FQDN
+        
+    Returns:
+        Clean domain name without protocol
+    """
+    # Remove protocol
+    domain = url.replace('https://', '').replace('http://', '')
+    # Remove path
+    domain = domain.split('/')[0]
+    # Remove port if present
+    domain = domain.split(':')[0]
+    return domain.lower()
+
+
+def determine_issuer_type(issuer_dict: dict, issuer_name: str) -> str:
+    """
+    Determine the type of SSL certificate issuer.
+    
+    Args:
+        issuer_dict: Extracted issuer information dict
+        issuer_name: Human readable issuer name
+        
+    Returns:
+        Type of issuer: 'Let's Encrypt', 'Sectigo', 'DigiCert', 'Other', etc.
+    """
+    issuer_lower = issuer_name.lower()
+    
+    if 'letsencrypt' in issuer_lower or 'lencr' in issuer_lower:
+        return 'Let\'s Encrypt'
+    elif 'sectigo' in issuer_lower or 'comodo' in issuer_lower:
+        return 'Sectigo'
+    elif 'digicert' in issuer_lower:
+        return 'DigiCert'
+    elif 'geotrust' in issuer_lower:
+        return 'GeoTrust'
+    elif 'globalsign' in issuer_lower:
+        return 'GlobalSign'
+    elif 'buypass' in issuer_lower:
+        return 'Buypass'
+    elif 'zahner' in issuer_lower:
+        return 'Zauner'
+    elif 'amazon' in issuer_lower:
+        return 'Amazon'
+    elif 'google' in issuer_lower:
+        return 'Google Trust Services'
+    elif 'cloudflare' in issuer_lower:
+        return 'Cloudflare'
+    elif 'namecheap' in issuer_lower:
+        return 'Namecheap'
+    elif 'ssl.com' in issuer_lower:
+        return 'SSL.com'
+    else:
+        return 'Other'
+
+
+def extract_certificate_fields(issuer_entries):
+    """Convert issuer/subject entries dict into a simple dict."""
+    result = {}
+    for issuer_entry in issuer_entries:
+        for sub_entry in issuer_entry:
+            if isinstance(sub_entry, tuple) and len(sub_entry) >= 2:
+                key, value = sub_entry[0], sub_entry[1]
+                result[key] = value
+            elif isinstance(sub_entry, str):
+                result[sub_entry] = sub_entry
+    return result
+
+
+def extract_readable_name(issuer_dict):
+    """Extract readable issuer name from certificate issuer dict, preserving order."""
+    # Common order: CN, Organization, Organizational Unit
+    cn_value = issuer_dict.get('CN') or issuer_dict.get('commonName') or ''
+    org_value = issuer_dict.get('O') or issuer_dict.get('ORGANIZATIONNAME') or ''
+    ou_value = issuer_dict.get('OU') or issuer_dict.get('ORGANIZATIONALUNITNAME') or ''
+    
+    parts = []
+    if cn_value: parts.append(cn_value)
+    if org_value: parts.append(org_value)
+    if ou_value: parts.append(ou_value)
+    
+    return ' - '.join(parts) if parts else 'Unknown Issuer'
+
+
 def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
     """
     Extract SSL certificate information from a domain.
@@ -17,7 +105,7 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
         
     Returns:
         Tuple of (certificate_info dict or None, error message)
-        info contains: issuer, expiry_date, days_remaining, issuer_type
+        info contains: issuer, expiry_date, days_remaining, issuer_type, and full details
     """
     try:
         # Extract domain from URL if full URL provided
@@ -28,123 +116,72 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
         with socket.create_connection((domain, 443), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
-                
-                # Parse certificate
+        
+                # Parse certificate data (getpeercert returns dict, not DER bytes)
                 expiry_date = datetime.strptime(
                     cert['notAfter'], '%b %d %H:%M:%S %Y %Z'
                 )
-                
+        
                 # Calculate days remaining
                 days_remaining = (expiry_date - datetime.now()).days
-                
-                # Extract issuer information
-                issuer_dict = {}
-                for issuer_entry in cert.get('issuer', []):
-                    for sub_entry in issuer_entry:
-                        if isinstance(sub_entry, tuple) and len(sub_entry) >= 2:
-                            key, value = sub_entry[0], sub_entry[1]
-                            issuer_dict[key] = value
-                
-                issuer_name = extract_issuer_name(issuer_dict)
+        
+                # Extract issuer and subject information
+                issuer_dict = extract_certificate_fields(cert.get('issuer', []))
+                subject_dict = extract_certificate_fields(cert.get('subject', []))
+        
+                # Extract all certificate details
+                serial_number = cert.get('serialNumber', 'Unknown')
+                not_before = datetime.strptime(
+                    cert.get('notBefore', 'Unknown'), '%b %d %H:%M:%S %Y %Z'
+                )
+        
+                # Get certificate version
+                version = cert.get('version', 'Unknown')
+        
+                # Fingerprint
+                digest = cert.get('digest', {})
+                if isinstance(digest, dict):
+                    sha256_val = digest.get('SHA256')
+                    if sha256_val is not None and isinstance(sha256_val, (bytes, bytearray)):
+                        sha256_fingerprint = ':'.join(f'{b:02X}' for b in sha256_val)
+                    elif sha256_val is not None and isinstance(sha256_val, str):
+                        sha256_fingerprint = sha256_val.replace(':', '')
+                        sha256_fingerprint = ':'.join(f'{ord(c):02X}' for c in sha256_fingerprint)
+                    else:
+                        sha256_fingerprint = 'N/A'
+                else:
+                    sha256_fingerprint = 'N/A (not found in cert)'
+        
+                # Subject Alternative Names (SANs)
+                san_entries = cert.get('subjectAltName', [])
+                san_list = []
+                for entry_type, entry_value in san_entries:
+                    san_list.append(f"{entry_type}: {entry_value}")
+                san_string = '\n'.join(san_list)
+        
+                # Certificate PEM extraction - use openssl for full data
+                cert_pem = 'PLACEHOLDER: Use OpenSSL CLI to export actual PEM data'
+        
+                issuer_name = extract_readable_name(issuer_dict)
                 issuer_type = determine_issuer_type(issuer_dict, issuer_name)
-                
+        
                 return {
                     'fqdn': domain,
                     'issuer': issuer_name,
                     'issuer_type': issuer_type,
                     'expiry_date': expiry_date,
-                    'days_remaining': days_remaining
+                    'days_remaining': days_remaining,
+                    'not_before': not_before,
+                    'serial_number': serial_number,  # Don't try to convert hex serial number
+                    'version': version,
+                    'sha256_fingerprint': sha256_fingerprint,
+                    'san_string': san_string,
+                    'subject_cn': subject_dict.get('CN', subject_dict.get('commonName', 'Unknown')),
+                    'pem': cert_pem,
                 }, ''
-    
     except socket.timeout:
         return None, "Connection timeout"
     except socket.gaierror:
         return None, "DNS resolution failed"
     except Exception as e:
         return None, str(e)
-
-
-def extract_domain(url: str) -> str:
-    """Extract domain from URL, removing protocol and ports"""
-    # Remove protocol
-    domain = url.replace('https://', '').replace('http://', '')
-    # Remove port if present
-    domain = domain.split(':')[0]
-    # Remove trailing slash
-    domain = domain.rstrip('/')
-    return domain
-
-
-def extract_issuer_name(issuer_dict: Dict[str, str]) -> str:
-    """Extract readable issuer name from certificate issuer dict"""
-    name_parts = []
-    # Common issuer field order: Common Name, Organization, Organizational Unit
-    for key in ['CN', 'commonName', 'O', 'ORGANIZATIONNAME', 'OU', 'ORGANIZATIONALUNITNAME']:
-        if key in issuer_dict:
-            name_parts.append(issuer_dict[key])
-    
-    return ' - '.join(name_parts) if name_parts else 'Unknown Issuer'
-
-
-def determine_issuer_type(issuer_dict: Dict[str, str], issuer_name: str) -> str:
-    """
-    Determine the type of certificate issuer
-    Returns: 'letsencrypt', 'sectigo', 'digiCert', 'comodo', 'other', or 'unknown'
-    """
-    issuer_normalized = issuer_name.lower()
-    
-    # Let's Encrypt patterns
-    lets_encrypt_patterns = ["let's encrypt", "letsencrypt", "l.e"]
-    if any(pattern in issuer_normalized for pattern in lets_encrypt_patterns):
-        return 'letsencrypt'
-    
-    # Sectigo patterns (formerly Comodo)
-    sectigo_patterns = ['sectigo', 'sectigo limited']
-    if any(pattern in issuer_normalized for pattern in sectigo_patterns):
-        return 'sectigo'
-    
-    # DigiCert patterns
-    digicert_patterns = ['digicert', 'digicert trusted']
-    if any(pattern in issuer_normalized for pattern in digicert_patterns):
-        return 'digiCert'
-    
-    # Comodo patterns (now Sectigo, but keeping for backward compat)
-    comodo_patterns = ['comodo', 'positive']
-    if any(pattern in issuer_normalized for pattern in comodo_patterns):
-        return 'comodo'
-    
-    # GoDaddy patterns
-    godaddy_patterns = ['godaddy', 'gd']
-    if any(pattern in issuer_normalized for pattern in godaddy_patterns):
-        return 'godaddy'
-    
-    # Cloudflare patterns
-    cloudflare_patterns = ['cloudflare']
-    if any(pattern in issuer_normalized for pattern in cloudflare_patterns):
-        return 'cloudflare'
-    
-    return 'other'
-
-
-def should_refresh_cache(days_remaining: int, checked_at: datetime, expiration_hours: int) -> bool:
-    """
-    Determine if cache should be refreshed based on days remaining and expiration time
-    
-    Caching strategy:
-    - Critical (< 30 days): refresh hourly
-    - Warning (30-90 days): refresh every 12 hours  
-    - Safe (> 90 days): refresh daily
-    """
-    hours_since_check = (datetime.now() - checked_at).total_seconds() / 3600
-    
-    if days_remaining < 30:
-        # Critical: check every hour
-        return hours_since_check > 1
-    elif days_remaining < 90:
-        # Warning: check every 12 hours
-        return hours_since_check > 12
-    else:
-        # Safe: check daily
-        return hours_since_check > 300
-        # Actually, 24 hours for safety
-        return hours_since_check > 24

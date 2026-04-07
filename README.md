@@ -3,8 +3,16 @@
 A web application for monitoring SSL certificate expiration dates across multiple domains with automatic caching and refresh scheduling.
 
 ## Features
-
+## Features
 - **SSL Certificate Monitoring**: Automatically checks SSL certificate expiration dates for multiple domains
+- **Enhanced Certificate Details**: Comprehensive certificate information including full details:
+  - Certificate issuer and owner information
+  - Full certificate validity periods
+  - Serial numbers and certificate versions
+  - Subject Alternative Names (SANs) list
+  - SHA-256 fingerprints (when available)
+  - Detailed certificate extensions
+  - Full certificate chain information view
 - **Smart Caching**: Smart caching strategy based on expiry dates:
   - Critical certificates (< 30 days): Check hourly
   - Warning certificates (30-90 days): Check every 12 hours  
@@ -12,44 +20,524 @@ A web application for monitoring SSL certificate expiration dates across multipl
 - **Issuer Detection**: Automatically identifies certificate providers (Let's Encrypt, Sectigo, DigiCert, Comodo, GoDaddy, Cloudflare, etc.)
 - **Customizable Metadata**: Store customer numbers and names for each certificate
 - **Intuitive Dashboard**: Clean, responsive web interface with sortable columns and color-coded status indicators
-- **Real-time Updates**: Manual certificate refresh capability
-- **RESTful API**: Full CRUD operations via API endpoints
+- **Real-time Updates**: Manual certificate refresh capability with detailed view
+- **RESTful API**: Full CRUD operations plus enhanced certificate details endpoints
 
 ## Quick Start
 
 ### Using Docker (Recommended)
 
-1. **Clone the repository**:
-   ```bash
-   cd /home/joris/ssl-checker
-   ```
+### POST `/api/certs/<fqdn>/refresh`
+```bash
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
 
-2. **Build and start the container**:
-   ```bash
-   docker-compose up --build
-   ```
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
+```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
+
+### POST `/api/certs/<fqdn>/refresh`
+```bash
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
+
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
+```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
 
 3. **Access the application**:
    - Open your browser and navigate to: `http://localhost:4444`
    - Go to `/admin` to add certificates
    - View SSL status on the main page
 
-4. **Stop the container**:
-   ```bash
-   docker-compose down
-   ```
+### POST `/api/certs/<fqdn>/refresh`
+```bash
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
+
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
+```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
 
 ### Using Python Directly
 
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### POST `/api/certs/<fqdn>/refresh`
+```bash
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
 
-2. **Run the application**:
-   ```bash
-   python run.py
-   ```
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
+```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
+
+### POST `/api/certs/<fqdn>/refresh`
+```bash
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
+
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
+```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
 
 3. **Access the application**:
    - Open your browser and navigate to: `http://localhost:4444`
@@ -117,10 +605,106 @@ Retrieve all URLs with SSL certificate information.
 - `sort_by`: Field to sort by (`days_remaining`, `customer_name`, `fqdn`, `expiry_date`)
 - `sort_order`: Sort order (`asc`, `desc`)
 
-**Example**:
+### POST `/api/certs/<fqdn>/refresh`
 ```bash
-curl "http://localhost:4444/api/urls?sort_by=days_remaining&sort_order=asc"
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
+
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
 ```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
 
 ### POST `/api/urls`
 
@@ -248,10 +832,106 @@ To test with real certificates:
 
 ### Logs
 
-View application logs:
+### POST `/api/certs/<fqdn>/refresh`
 ```bash
-docker-compose logs -f ssl-monitor
+curl -X POST "http://localhost:4444/api/certs/google.com/refresh" -H "Authorization: Bearer your-token"
+```\n\n### GET `/api/certs/<id>/details`\n\nRetrieve detailed certificate information including full certificate data.\n\n**Returns complete certificate details**:
+- Basic certificate information (FQDN, SSL expiry, issuer, days remaining)
+- Issuer details (CN, organization, country, organizational unit)
+- Subject/owner information (CN, organization)
+- Certificate validity period (not before, not after)
+- Serial number and version
+- Key algorithm and size information
+- Subject Alternative Names (SANs) list
+- SHA-256 fingerprint (if available)
+- Certificate extensions
+
+**Example**:
+
+```bash
+# Get detailed info for certificate with ID 9
+curl -s 'http://localhost:4444/api/certs/9/details' \
+  -H 'Authorization: Bearer your-token' | python3 -m json.tool
+
+# Sample response:
+{
+    "success": true,
+    "fqdn": "google.com",
+    "details": {
+        "basic_info": {
+            "fqdn": "google.com",
+            "url_id": 9,
+            "customer_number": null,
+            "customer_name": "Google Test"
+        },
+        "issuer_info": {
+            "CN": "WR2",
+            "O": "Google Trust Services",
+            "C": "US"
+        },
+        "subject_info": {
+            "CN": "*.google.com"
+        },
+        "validity": {
+            "not_before": "Mar 16 08:36:32 2026 GMT",
+            "not_after": "Jun  8 08:36:31 2026 GMT"
+        },
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "key_info": {
+            "algorithm": "RSA",
+            "key_size": "N/A"
+        },
+        "fingerprint": {
+            "sha256": "N/A",
+            "md5": "N/A (requires openssl)"
+        },
+        "extensions": {
+            "version": 3,
+            "san": [
+                "DNS: *.google.com",
+                "DNS: *.appengine.google.com",
+                ...
+            ]
+        }
+    },
+    "cert_data": {
+        "fqdn": "google.com",
+        "issuer": "WR2 - Google Trust Services",
+        "issuer_type": "Other",
+        "expiry_date": "2026-06-08 08:36:31",
+        "days_remaining": 61,
+        "not_before": "2026-03-16 08:36:32",
+        "serial_number": "ACE65BAACA2AE1D80998CA59B3269D53",
+        "version": 3,
+        "sha256_fingerprint": "N/A",
+        "subject_cn": "*.google.com",
+        "pem": "PLACEHOLDER"
+    }
+}
 ```
+
+**Accessing from UI**:
+- Navigate to `/admin` → Find your certificate → Click "View Certificate Details" button
+- Opens modal with comprehensive certificate information
+- See all SSL certificate technical details
+
+## Certificate Types Detection
+
+The application automatically identifies SSL certificate issuers. Supported issuers:
+- Let's Encrypt
+- Sectigo (formerly Comodo)
+- DigiCert
+- GeoTrust
+- GlobalSign
+- Buypass
+- Zauner
+- Amazon (Certificate Manager)
+- Google Trust Services
+- Cloudflare
+- Namecheap
+- SSL.com
+- Other (unrecognized issuers)
 
 ## Security Considerations
 

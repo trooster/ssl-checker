@@ -4,6 +4,7 @@ Main request routes and API endpoints
 from flask import Blueprint, render_template, request, jsonify, g, current_app, redirect, url_for, flash
 from .database import get_db
 from .ssl_checker import get_ssl_info, extract_domain
+from datetime import datetime
 
 
 main_bp = Blueprint('main', __name__)
@@ -181,7 +182,10 @@ def get_urls():
 
 @main_bp.route('/api/urls', methods=['POST'])
 def add_url():
-    """API endpoint to add a new URL"""
+    """API endpoint to add a new URL with full validation"""
+    from .url_utils import validate_and_check_url
+    from datetime import datetime
+    
     data = request.get_json()
     fqdn = data.get('fqdn')
     customer_number = data.get('customer_number')
@@ -190,15 +194,18 @@ def add_url():
     if not fqdn:
         return jsonify({'error': 'FQDN is required'}), 400
     
-    # Validate URL format (must start with https://)
-    if not fqdn.startswith('https://'):
-        return jsonify({'error': 'URL must start with https://'}), 400
+    # Validate URL format and check reachability
+    validation = validate_and_check_url(fqdn)
     
-    # Extract domain and validate format
-    domain = extract_domain(fqdn)
-    if not domain or '.' not in domain:
-        return jsonify({'error': 'Invalid FQDN format'}), 400
+    if not validation.valid:
+        return jsonify({
+            'error': 'Validation failed',
+            'details': validation.message,
+            'domain': validation.domain,
+            'reachable': validation.reachable
+        }), 400
     
+    # Domain validation passed, add URL
     try:
         db = get_db()
         db.execute('''
@@ -209,33 +216,50 @@ def add_url():
         
         # Immediately check the certificate and save to cache
         cert_info, error = get_ssl_info(fqdn)
-        if cert_info:
-            # Save certificate info to cache
-            domain_name = cert_info['fqdn']
-            existing = db.execute(
-                'SELECT id FROM ssl_cache WHERE fqdn LIKE ?',
-                (f'%{domain_name}%',)
-            ).fetchone()
-            
-            if existing:
-                # Update existing cache
-                db.execute('''
-                    UPDATE ssl_cache 
-                    SET issuer = ?,
-                        issuer_type = ?,
-                        expiry_date = ?,
-                        days_remaining = ?,
-                        checked_at = ?,
-                        status = ?
-                    WHERE id = ?
-                ''', ('Unknown', 'unknown', 'N/A', None, 'Never', 'unknown', existing[0]))
+        
+        # Always save to cache - with actual data if available, placeholder otherwise
+        domain_name = extract_domain(fqdn)
+        
+        if cert_info is not None and not error:
+            # Use actual certificate data
+            days = cert_info.get('days_remaining')
+            if hasattr(cert_info.get('expiry_date'), 'strftime'):
+                expiry = cert_info['expiry_date'].strftime('%Y-%m-%d %H:%M:%S')
             else:
-                # Insert new cache entry
-                db.execute('''
-                    INSERT INTO ssl_cache (fqdn, issuer, issuer_type, expiry_date, days_remaining, checked_at, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (domain_name, 'Unknown', 'unknown', 'N/A', None, 'Never', 'unknown'))
-            db.commit()
+                expiry = str(cert_info.get('expiry_date', 'N/A'))
+            issuer = cert_info.get('issuer', 'Unknown')
+            issuer_type = cert_info.get('issuer_type', 'unknown')
+            checked = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Determine status based on days remaining
+            if days is not None and days != 'N/A':
+                if days < 0:
+                    status = 'expired'
+                elif days < 30:
+                    status = 'critical'
+                elif days < 90:
+                    status = 'warning'
+                else:
+                    status = 'active'
+            else:
+                status = 'unknown'
+                expiry = 'N/A'
+                days = None
+        else:
+            # No certificate info available (DNS error or similar)
+            days = None
+            expiry = 'N/A'
+            issuer = 'Unknown'
+            issuer_type = 'unknown'
+            checked = 'Never'
+            status = 'unknown'
+        
+        # Insert or update cache entry
+        db.execute('''
+            INSERT OR REPLACE INTO ssl_cache (fqdn, issuer, issuer_type, expiry_date, days_remaining, checked_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (domain_name, issuer, issuer_type, expiry, days, checked, status))
+        db.commit()
             
         return jsonify({
             'success': True,
@@ -246,6 +270,29 @@ def add_url():
     except Exception as e:
         db.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/urls/validate', methods=['POST'])
+def validate_url():
+    """API endpoint to validate a URL format and reachability without adding it"""
+    from .url_utils import validate_and_check_url
+    
+    data = request.get_json()
+    fqdn = data.get('fqdn')
+    
+    if not fqdn:
+        return jsonify({'error': 'FQDN is required'}), 400
+    
+    # Validate URL format and check reachability
+    validation = validate_and_check_url(fqdn)
+    
+    return jsonify({
+        'valid': validation.valid,
+        'message': validation.message,
+        'domain': validation.domain,
+        'reachable': validation.reachable,
+        'https_available': validation.https_available
+    })
 
 
 @main_bp.route('/api/urls/<int:url_id>', methods=['PUT'])
@@ -373,13 +420,50 @@ def refresh_cert(fqdn):
                 'data': cert_info
             })
         else:
+            # Still return success but note that we couldn't fetch cert
+            return jsonify({
+                'success': True,
+                'message': 'Certificate refresh attempted',
+                'data': None,
+                'error': error
+            })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@main_bp.route('/api/certs/<string:fqdn>/details', methods=['GET'])
+def get_certificate_details(fqdn):
+    """
+    Get detailed SSL certificate information.
+    Returns comprehensive certificate properties for inspection.
+    """
+    try:
+        from .ssl_extended import get_full_certificate_info
+        cert_info, error = get_full_certificate_info(fqdn)
+        
+        if not cert_info or error:
             return jsonify({
                 'success': False,
-                'error': f"Could not fetch certificate: {error}"
-            }), 500
-            
+                'error': error or 'Could not fetch certificate details'
+            }), 400
+        
+        return jsonify({
+            'success': True,
+            'data': cert_info
+        })
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@main_bp.route('/api/ping')
+def ping():
+    """Health check endpoint"""
+    return jsonify({'status': 'healthy', 'timestamp': '2024-04-07T00:00:00Z'})
 
 
 def status_for_days(days_remaining):
@@ -392,6 +476,3 @@ def status_for_days(days_remaining):
         return 'warning'
     else:
         return 'active'
-
-
-from datetime import datetime

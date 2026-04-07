@@ -21,11 +21,12 @@ def init_db(app):
     with app.app_context():
         db = get_db()
         
-        # URLs table
+        # URLs table with SSL port
         db.execute('''
             CREATE TABLE IF NOT EXISTS urls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fqdn TEXT UNIQUE NOT NULL,
+                ssl_port INTEGER DEFAULT 443,
                 customer_number TEXT,
                 customer_name TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -38,6 +39,7 @@ def init_db(app):
             CREATE TABLE IF NOT EXISTS ssl_cache (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 fqdn TEXT NOT NULL,
+                ssl_port INTEGER DEFAULT 443,
                 issuer TEXT,
                 issuer_type TEXT,
                 expiry_date TIMESTAMP,
@@ -45,13 +47,14 @@ def init_db(app):
                 checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 status TEXT DEFAULT 'active',
                 FOREIGN KEY (fqdn) REFERENCES urls(fqdn) ON DELETE CASCADE,
-                UNIQUE(fqdn)
+                UNIQUE(fqdn, ssl_port)
             )
         ''')
         
         # Create indexes for performance
         db.execute('CREATE INDEX IF NOT EXISTS idx_ssl_cache_checked_at ON ssl_cache(checked_at)')
         db.execute('CREATE INDEX IF NOT EXISTS idx_ssl_cache_days_remaining ON ssl_cache(days_remaining)')
+        db.execute('CREATE INDEX IF NOT EXISTS idx_ssl_cache_port ON ssl_cache(ssl_port)')
         db.execute('CREATE INDEX IF NOT EXISTS idx_urls_customer_name ON urls(customer_name)')
         
         db.commit()

@@ -6,6 +6,8 @@
     <title>SSL Certificate Monitor</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- SweetAlert2 for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -110,8 +112,42 @@
         </div>
     </nav>
 
+    <!-- Flash Messages with SweetAlert2 -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                {% for category, message in messages %}
+                    {% set i = loop.index0 %}
+                    {% set icon = 
+                        'success' if category == 'success' else 
+                        'error' if category in ['error', 'danger'] else
+                        'warning' if category == 'warning' else
+                        'info' %}
+                    {% set title = 
+                        'Succes!' if category == 'success' else 
+                        'Fout!' if category in ['error', 'danger'] else
+                        'Waarschuwing' if category == 'warning' else
+                        'Notificatie' %}
+                    let toastDelay{{ i }} = {{ i * 500 }};
+                    setTimeout(() => {
+                        Swal.fire({
+                            position: "top-end",
+                            icon: "{{ icon }}",
+                            title: "{{ title }}",
+                            text: "{{ message|replace('\\', '\\\\')|replace('\"', '\\\"')|replace('\\n', '\\\\n') }}",
+                            showConfirmButton: false,
+                            timer: 3000,
+                            toast: true,
+                            width: 400,
+                            padding: "15px 20px"
+                        });
+                    }, toastDelay{{ i }});
+                {% endfor %}
+            </script>
+        {% endif %}
+    {% endwith %}
+
     <div class="container-fluid mt-4">
-        <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
@@ -227,23 +263,56 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="http://0.0.0.0:4444/api/certs/{{ url.fqdn|replace('/', '')|replace('/', '')|replace('/', '') }}/refresh" 
-                                       class="btn btn-sm btn-outline-primary"
-                                       title="Refresh certificate">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </a>
-                                    <a href="/admin?edit={{ url.id }}" class="btn btn-sm btn-outline-secondary" title="Edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="javascript:void(0)" 
+                                           class="btn btn-outline-primary" 
+                                           title="View Certificate Details"
+                                           onclick="showCertificateDetails('{{ url.fqdn|replace('https://', '')|replace('http://', '') }}', {{ url.id }})">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </a>
+                                        <a href="http://0.0.0.0:4444/api/certs/{{ url.fqdn|replace('/', '')|replace('/', '')|replace('/', '') }}/refresh" 
+                                           class="btn btn-outline-info"
+                                           title="Refresh Certificate">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </a>
+                                        <a href="/admin?edit={{ url.id }}" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                    <a href="/admin?delete={{ url.id }}" 
+                       class="btn btn-outline-danger btn-sm"
+                       title="Delete"
+                       onclick="return confirm('Are you sure you want to delete this certificate?')">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Certificate Details Modal -->
+                <div class="modal fade" id="certDetailsModal" tabindex="-1" aria-labelledby="certDetailsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="certDetailsModalLabel">Certificate Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="modalBody">
+                                Loading...
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="button" class="btn btn-primary" onclick="copyFingerprint()">
+                                    <i class="bi bi-clipboard"></i> Copy SHA-256
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        {% else %}
+
+{% else %}
         <div class="card">
             <div class="card-body text-center text-muted py-5">
                 <i class="bi bi-inbox fs-1"></i>
@@ -264,5 +333,169 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Show certificate details modal
+        async function showCertificateDetails(fqdn, url_id) {
+            try {
+                const response = await fetch(`/api/certs/${fqdn}/details`);
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const cert = data.data;
+                    
+                    let html = `
+                        <div class="text-center mb-3">
+                            <h5>Certificate Details: ${cert.fqdn}</h5>
+                            <span class="badge bg-${getStatusBadge(cert.days_remaining)}">${cert.status || 'active'}</span>
+                        </div>
+                        
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <th>Issuer</th>
+                                    <td>${cert.issuer}</td>
+                                </tr>
+                                <tr>
+                                    <th>Expiry Date</th>
+                                    <td>${cert.expiry_date}</td>
+                                </tr>
+                                <tr>
+                                    <th>Days Remaining</th>
+                                    <td><span class="badge bg-${getDaysBadge(cert.days_remaining)}">${cert.days_remaining} days</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Not Before</th>
+                                    <td>${cert.not_before}</td>
+                                </tr>
+                                <tr>
+                                    <th>Serial Number</th>
+                                    <td>${cert.serial_number}</td>
+                                </tr>
+                                <tr>
+                                    <th>Version</th>
+                                    <td>${cert.version}</td>
+                                </tr>
+                                <tr>
+                                    <th>Signature Algorithm</th>
+                                    <td>${cert.signature_algorithm}</td>
+                                </tr>
+                                <tr>
+                                    <th>Key Algorithm</th>
+                                    <td>${cert.key_algorithm} (${cert.key_size || 'N/A'} bits)</td>
+                                </tr>
+                                <tr>
+                                    <th>SHA-256 Fingerprint</th>
+                                    <td><code>${cert.fingerprint_sha256}</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <h6>Subject/Owner:</h6>
+                        <div class="mb-3">
+                            ${formatSubject(cert.subject)}
+                        </div>
+                        
+                        <h6>Issuer Details:</h6>
+                        <div class="mb-3">
+                            ${formatIssuer(cert.issuer_details)}
+                        </div>
+                        
+                        <h6>SAN Domains:</h6>
+                        <div class="mb-3">
+                            ${formatSAN(cert.san_string)}
+                        </div>
+                        
+                        <h6>Basic Constraints:</h6>
+                        <div class="mb-3">
+                            ${formatBasicConstraints(cert.basic_constraints)}
+                        </div>
+                        
+                        <h6>Key Usage:</h6>
+                        <div class="mb-3">
+                            ${formatKeyUsage(cert.key_usage)}
+                        </div>
+                        
+                        <h6>Extended Key Usage:</h6>
+                        <div class="mb-3">
+                            ${formatEKU(cert.extended_key_usage)}
+                        </div>
+                    `;
+                    
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('certDetailsModal')).show();
+                    document.getElementById('modalBody').innerHTML = html;
+                } else {
+                    alert('Error: ' + (data.error || 'Could not fetch certificate details'));
+                }
+            } catch (error) {
+                console.error('Error fetching certificate details:', error);
+                alert('Error fetching certificate details: ' + error.message);
+            }
+        }
+        
+        function formatSubject(subject) {
+            if (!subject || Object.keys(subject).length === 0) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            return Object.entries(subject)
+                .map(([key, value]) => `<div><strong>${key}:</strong> ${value}</div>`)
+                .join('');
+        }
+        
+        function formatIssuer(issuer) {
+            if (!issuer || Object.keys(issuer).length === 0) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            return Object.entries(issuer)
+                .map(([key, value]) => `<div><strong>${key}:</strong> ${value}</div>`)
+                .join('');
+        }
+        
+        function formatSAN(sanString) {
+            if (!sanString) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            const domains = sanString.split(',').map(d => d.trim());
+            return `<div class="list-group">\n${domains.slice(0, 10).map(d => `<a class="list-group-item list-group-item-action" style="font-size: 0.75rem">${d}</a>`).join('')}\n</div>${domains.length > 10 ? `<p class="text-muted mt-2">...and ${domains.length - 10} more domains</p>` : ''}`;
+        }
+        
+        function formatBasicConstraints(constraints) {
+            if (!constraints) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            return `<div><strong>Is CA:</strong> ${constraints.is_ca ? 'Yes' : 'No'}</div>
+                    <div><strong>Max Path Length:</strong> ${constraints.max_path_length ?? 'Unlimited'}</div>`;
+        }
+        
+        function formatKeyUsage(usage) {
+            if (!usage) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            const items = Object.entries(usage)
+                .filter(([_, value]) => value)
+                .map(([key, _]) => key.replace('_', ' ').toUpperCase());
+            return items.length > 0 ? items.join(', ') : 'None';
+        }
+        
+        function formatEKU(eku) {
+            if (!eku || eku.length === 0) {
+                return '<span class="text-muted">Not available</span>';
+            }
+            return eku.join(', ');
+        }
+        
+        function getStatusBadge(days) {
+            if (days < 0) return 'danger';
+            if (days < 30) return 'warning';
+            if (days < 90) return 'info';
+            return 'success';
+        }
+        
+        function getDaysBadge(days) {
+            if (days < 0) return 'danger';
+            if (days < 30) return 'warning';
+            if (days < 90) return 'info';
+            return 'success';
+        }
+    </script>
 </body>
 </html>
