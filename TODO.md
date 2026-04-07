@@ -43,8 +43,6 @@
 - [x] Test suite with build_and_test.sh script
 - [x] Git repository with proper commit history
 
-| [x] Test suite with build_and_test.sh script | [x] Git repository with proper commit history |
-
 ## ✅ Completed Features
 
 ### ID: 18 - Enhanced SSL Certificate Viewer (COMPLETED ✅)
