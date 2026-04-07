@@ -655,6 +655,16 @@ def get_status():
     })
 
 
+@main_bp.route('/api/ping')
+def ping():
+    """Ping endpoint for health checks"""
+    return jsonify({
+        'status': 'ok',
+        'message': 'SSL Certificate Monitor is running',
+        'timestamp': datetime.now().isoformat()
+    })
+
+
 def status_for_days(days_remaining):
     """Helper to determine status based on days remaining"""
     if days_remaining < 0:
