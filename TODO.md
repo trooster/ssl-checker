@@ -27,16 +27,25 @@
 - [x] GET /api/certs/<fqdn>/details - Get full certificate details
 
 ### Frontend
-- [x] Modern responsive design with Bootstrap 5
-- [x] Dashboard with color-coded status (green=active, yellow=warning, red=expired)
-- [x] Admin panel for certificate management
-- [x] Delete functionality with confirmation
-- [x] Sortable columns (expiry date, customer name, FQDN, etc.)
-- [x] Enhanced SSL details modal with full certificate information
-- [x] Issuer name display (organization only, no badge noise)
-- [x] URL validation (format + reachability check)
-- [x] Custom port support (default 443, e.g., :8443)
-- [x] MCP server for agent integration
+|- [x] Modern responsive design with Bootstrap 5
+|- [x] Dashboard with color-coded status (green=active, yellow=warning, red=expired)
+|- [x] Admin panel for certificate management
+|- [x] Delete functionality with confirmation
+|- [x] Sortable columns (expiry date, customer name, FQDN, etc.)
+|- [x] Enhanced SSL details modal with full certificate information
+|- [x] Issuer name display (organization only, no badge noise)
+|- [x] URL validation (format + reachability check)
+|- [x] Custom port support (default 443, e.g., :8443)
+|- [x] Expired certificate support (shows negative days_remaining)
+|- [x] MCP server for agent integration
+
+### MCP Integration
+|- [x] Native MCP SDK server implementation
+|- [x] 8 MCP tools: add_certificate, list_certificates, get_certificate_details
+|- [x] 8 MCP tools: refresh_certificate, delete_certificate, query_expiring, query_expired, query_customer
+|- [x] Configuration in ~/.hermes/config.yaml
+|- [x] /api/ping endpoint for health checks
+|- [x] Docker MCP server support via stdio
 
 ### DevOps & Testing
 - [x] Docker container with Dockerfile and docker-compose.yml
