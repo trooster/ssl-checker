@@ -1,5 +1,9 @@
 # SSL Certificate Monitor
 
+⚠️ **SECURITY WARNING: This application does not use any authentication!**  
+**DO NOT run this application on public IP addresses or exposed internet-facing servers.**  
+This is a development/demo application intended for local/private network use only.
+
 A web application for monitoring SSL certificate expiration dates across multiple domains with automatic caching and refresh scheduling.
 
 ## Features
