@@ -59,20 +59,6 @@
 - Server unreachable during check
 - Weekly digest report
 
----
-
-### ID: 24 - Enhanced Dashboard Analytics
-**Status:** Pending
-
-**Description:** Add charts and visualizations for certificate trends
-
-**Requirements:**
-- Expiration timeline chart
-- Issuer distribution pie chart
-- Status summary kpi tiles
-
----
-
 ## 📝 Notes
 
 - All completed features are fully integrated and tested
