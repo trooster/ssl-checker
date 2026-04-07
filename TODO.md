@@ -447,14 +447,7 @@ ORDER BY sc.days_remaining ASC;
 
 -- Certificates for specific customer
 SELECT * FROM urls
-WHERE customer_name LIKE '%customer_name%'
-ORDER BY created_at DESC;
-```
-
----
-
-## 📝 Implementation Notes
-
+WHERE customer_name LIKE '%customer_name%'\nORDER BY created_at DESC;\n```\n\n---\n\n## ✅ Completed Features\n\n### ID: 22 - MCP Server Integration (COMPLETED ✅)\n\n**Status:** Completed\n\n**Description:**\nModel Context Protocol server for agent integration with SSL certificate monitoring.\n\n**Implemented Features:**\n- ✅ MCP server with stdio transport\n- ✅ Tool: `add_certificate` - Add new certificates to monitor\n- ✅ Tool: `list_certificates` - List all monitored certificates\n- ✅ Tool: `query_expiring` - Get certificates expiring in N days\n- ✅ Tool: `query_expired` - Get expired certificates\n- ✅ Tool: `query_customer` - Get certificates for specific customer\n- ✅ Tool: `refresh_certificate` - Manually refresh certificate\n- ✅ Tool: `get_certificate_details` - Get full certificate details\n- ✅ Tool: `delete_certificate` - Remove certificates from monitoring\n\n**Technical Implementation:**\n- Python MCP server using pydantic models\n- Integration with existing ssl_checker module\n- Database queries via existing get_db() function\n- Structured JSON responses with certificate data\n- Error handling with descriptive messages\n\n**Files Modified:**\n- `app/mcp_server.py` - MCP server implementation\n- `app/mcp_tools.py` - MCP tool definitions\n- `app/mcp_models.py` - Pydantic models for data structures\n\n**Agent Usage Examples:**\n```\n# Query certificates expiring soon\nAgent: \"Which SSL certificates are expiring in the next 60 days?\"\nMCP Server returns: {\"certificates\": [...], \"count\": 2}\n\n# List all certificates\nAgent: \"List all monitored SSL certificates\"\nMCP Server returns: {\"certificates\": [...], \"count\": 5}\n\n# Find expired certificates\nAgent: \"Find all expired certificates\"\nMCP Server returns: {\"certificates\": [...], \"count\": 1}\n```\n\n---\n\n## 📝 Implementation Notes\n
 - Prioritize MCP server development for agent integration
 - Ensure backward compatibility with existing web interface
 - Write comprehensive documentation for MCP API usage

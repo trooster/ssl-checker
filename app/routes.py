@@ -460,10 +460,199 @@ def get_certificate_details(fqdn):
         }), 500
 
 
-@main_bp.route('/api/ping')
-def ping():
-    """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'timestamp': '2024-04-07T00:00:00Z'})
+@main_bp.route('/api/query/expiring')
+def query_expiring():
+    """
+    API endpoint to query certificates expiring within N days
+    Used by MCP server for agent queries
+    """
+    days = request.args.get('days', 30, type=int)
+    
+    db = get_db()
+    query = '''
+        SELECT 
+            u.id,
+            u.fqdn,
+            u.customer_number,
+            u.customer_name,
+            COALESCE(sc.issuer, 'Unknown') as issuer,
+            COALESCE(sc.issuer_type, 'unknown') as issuer_type,
+            COALESCE(sc.expiry_date, 'N/A') as expiry_date,
+            COALESCE(sc.days_remaining, null) as days_remaining,
+            COALESCE(sc.checked_at, 'Never') as checked_at,
+            COALESCE(sc.status, 'unknown') as status
+        FROM urls u
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        WHERE sc.days_remaining IS NOT NULL
+          AND sc.days_remaining <= ?
+        ORDER BY sc.days_remaining ASC
+    '''
+    
+    certificates = db.execute(query, (days,)).fetchall()
+    
+    result = []
+    for cert in certificates:
+        result.append({
+            'id': cert['id'],
+            'fqdn': cert['fqdn'],
+            'customer_number': cert['customer_number'],
+            'customer_name': cert['customer_name'],
+            'issuer': cert['issuer'],
+            'issuer_type': cert['issuer_type'],
+            'expiry_date': cert['expiry_date'],
+            'days_remaining': cert['days_remaining'],
+            'checked_at': cert['checked_at'],
+            'status': cert['status']
+        })
+    
+    return jsonify({
+        'success': True,
+        'certificates': result,
+        'count': len(result)
+    })
+
+
+@main_bp.route('/api/query/expired')
+def query_expired():
+    """
+    API endpoint to query all expired certificates
+    Used by MCP server for agent queries
+    """
+    db = get_db()
+    
+    query = '''
+        SELECT 
+            u.id,
+            u.fqdn,
+            u.customer_number,
+            u.customer_name,
+            COALESCE(sc.issuer, 'Unknown') as issuer,
+            COALESCE(sc.issuer_type, 'unknown') as issuer_type,
+            COALESCE(sc.expiry_date, 'N/A') as expiry_date,
+            COALESCE(sc.days_remaining, null) as days_remaining,
+            COALESCE(sc.checked_at, 'Never') as checked_at,
+            COALESCE(sc.status, 'unknown') as status
+        FROM urls u
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        WHERE sc.days_remaining IS NOT NULL
+          AND sc.days_remaining < 0
+        ORDER BY sc.days_remaining ASC
+    '''
+    
+    certificates = db.execute(query).fetchall()
+    
+    result = []
+    for cert in certificates:
+        result.append({
+            'id': cert['id'],
+            'fqdn': cert['fqdn'],
+            'customer_number': cert['customer_number'],
+            'customer_name': cert['customer_name'],
+            'issuer': cert['issuer'],
+            'issuer_type': cert['issuer_type'],
+            'expiry_date': cert['expiry_date'],
+            'days_remaining': cert['days_remaining'],
+            'checked_at': cert['checked_at'],
+            'status': cert['status']
+        })
+    
+    return jsonify({
+        'success': True,
+        'certificates': result,
+        'count': len(result)
+    })
+
+
+@main_bp.route('/api/query/customer')
+def query_customer():
+    """
+    API endpoint to query certificates for a specific customer
+    Used by MCP server for agent queries
+    """
+    customer_name = request.args.get('name', '', type=str)
+    
+    if not customer_name:
+        return jsonify({
+            'success': False,
+            'error': 'customer_name parameter is required'
+        }), 400
+    
+    db = get_db()
+    
+    query = '''
+        SELECT 
+            u.id,
+            u.fqdn,
+            u.customer_number,
+            u.customer_name,
+            COALESCE(sc.issuer, 'Unknown') as issuer,
+            COALESCE(sc.issuer_type, 'unknown') as issuer_type,
+            COALESCE(sc.expiry_date, 'N/A') as expiry_date,
+            COALESCE(sc.days_remaining, null) as days_remaining,
+            COALESCE(sc.checked_at, 'Never') as checked_at,
+            COALESCE(sc.status, 'unknown') as status
+        FROM urls u
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        WHERE u.customer_name LIKE ?
+        ORDER BY u.created_at DESC
+    '''
+    
+    certificates = db.execute(query, ('%' + customer_name + '%',)).fetchall()
+    
+    result = []
+    for cert in certificates:
+        result.append({
+            'id': cert['id'],
+            'fqdn': cert['fqdn'],
+            'customer_number': cert['customer_number'],
+            'customer_name': cert['customer_name'],
+            'issuer': cert['issuer'],
+            'issuer_type': cert['issuer_type'],
+            'expiry_date': cert['expiry_date'],
+            'days_remaining': cert['days_remaining'],
+            'checked_at': cert['checked_at'],
+            'status': cert['status']
+        })
+    
+    return jsonify({
+        'success': True,
+        'certificates': result,
+        'count': len(result)
+    })
+
+
+@main_bp.route('/api/status')
+def get_status():
+    """
+    API endpoint to get server status
+    Used by MCP server for health checks
+    """
+    db = get_db()
+    
+    # Count certificates
+    cert_count = db.execute('SELECT COUNT(*) as count FROM urls').fetchone()['count']
+    
+    # Count expired
+    expired_count = db.execute('''
+        SELECT COUNT(*) as count FROM urls u
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        WHERE sc.days_remaining IS NOT NULL AND sc.days_remaining < 0
+    ''').fetchone()['count']
+    
+    # Count expiring soon
+    expiring_count = db.execute('''
+        SELECT COUNT(*) as count FROM urls u
+        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        WHERE sc.days_remaining IS NOT NULL AND sc.days_remaining >= 0 AND sc.days_remaining <= 30
+    ''').fetchone()['count']
+    
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': '2024-04-07T00:00:00Z',
+        'certificates_monitored': cert_count,
+        'expired_count': expired_count,
+        'expiring_soon_count': expiring_count
+    })
 
 
 def status_for_days(days_remaining):
