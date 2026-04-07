@@ -35,6 +35,7 @@
 - [x] Enhanced SSL details modal with full certificate information
 - [x] Issuer name display (organization name only, no badge noise)
 - [x] URL validation feedback (success/failure messages)
+- [x] MCP server for agent integration (ID: 22 ✅)
 
 ### DevOps & Testing
 - [x] Docker container with Dockerfile and docker-compose.yml
