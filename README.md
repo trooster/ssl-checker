@@ -22,6 +22,7 @@ A web application for monitoring SSL certificate expiration dates across multipl
 - **Intuitive Dashboard**: Clean, responsive web interface with sortable columns and color-coded status indicators
 - **Real-time Updates**: Manual certificate refresh capability with detailed view
 - **RESTful API**: Full CRUD operations plus enhanced certificate details endpoints
+- **MCP Server**: Model Context Protocol server for agent integration
 
 ## Quick Start
 
