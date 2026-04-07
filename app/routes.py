@@ -65,14 +65,14 @@ def admin():
         db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
         db.commit()
         flash('Certificate deleted successfully', 'success')
-        return redirect(url_for('main.admin'))
+        return redirect(url_for('main.index'))
     
     if request.method == 'POST' and delete_id:
         # Handle deletion via POST from form submission
         db.execute('DELETE FROM urls WHERE id = ?', (delete_id,))
         db.commit()
         flash('Certificate deleted successfully', 'success')
-        return redirect(url_for('main.admin'))
+        return redirect(url_for('main.index'))
     
     if request.method == 'POST' and url_id:
         # Handle form submission
@@ -154,7 +154,9 @@ def get_urls():
             COALESCE(sc.checked_at, 'Never') as checked_at,
             COALESCE(sc.status, 'unknown') as status
         FROM urls u
-        LEFT JOIN ssl_cache sc ON LOWER(u.fqdn) LIKE LOWER('%' || sc.fqdn || '%')
+        LEFT JOIN ssl_cache sc ON 
+            LOWER(REPLACE(LOWER(u.fqdn), 'https://', '')) LIKE '%' || LOWER(sc.fqdn) || '%'
+            OR LOWER(u.fqdn) LIKE '%' || LOWER(REPLACE(sc.fqdn, 'https://', '')) || '%'
     '''
     
     sort_mappings = {
