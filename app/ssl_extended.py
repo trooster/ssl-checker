@@ -11,12 +11,15 @@ def get_full_certificate_info(fqdn: str) -> Tuple[Optional[Dict], str]:
     """
     Extract comprehensive SSL certificate information.
     
+    Args:
+        fqdn: Full domain name with optional protocol prefix
+        
     Returns:
         Tuple of (full_cert_dict or None, error_msg)
         dict contains: basic info + detailed properties
     """
     try:
-        from .ssl_checker import extract_domain, get_ssl_info, determine_issuer_type
+        from .ssl_checker import extract_domain, get_ssl_info
         
         # Get basic info first
         basic_info, error = get_ssl_info(fqdn)
@@ -49,8 +52,8 @@ def get_full_certificate_info(fqdn: str) -> Tuple[Optional[Dict], str]:
                     'fingerprint_md5': 'N/A (requires openssl)',
                     'san_list': cert.get('subjectAltName', []),
                     'san_string': ', '.join([str(san[1]) for san in cert.get('subjectAltName', [])]),
-                    'key_algorithm': cert.get('signatureAlgorithm', 'Unknown'),
-                    'key_size': None,
+                    'key_algorithm': extract_key_algorithm(cert),
+                    'key_size': extract_key_size(cert),
                     'signature_algorithm': cert.get('signatureAlgorithm', 'Unknown'),
                     'basic_constraints': extract_basic_constraints(cert),
                     'key_usage': extract_key_usage(cert),
@@ -63,10 +66,8 @@ def get_full_certificate_info(fqdn: str) -> Tuple[Optional[Dict], str]:
         return None, "Connection timeout"
     except socket.gaierror:
         return None, "DNS resolution failed"
-    except ssl.SSLError as e:
-        return None, f"SSL error: {str(e)}"
     except Exception as e:
-        return None, f"Error: {str(e)}"
+        return None, str(e)
 
 
 def extract_certificate_subject(cert: dict) -> dict:
@@ -85,6 +86,27 @@ def extract_certificate_issuer_details(cert: dict) -> dict:
         for key, value in issuer_entry:
             issuer[key] = value
     return issuer
+
+
+def extract_sha256_fingerprint(cert: dict) -> str:
+    """Extract SHA-256 fingerprint from certificate."""
+    sha256_hash = cert.get('sha256Digest', 'N/A')
+    return sha256_hash
+
+
+def extract_md5_fingerprint(cert: dict) -> str:
+    """Extract MD5 fingerprint from certificate - not available from Python's getpeercert()."""
+    return 'N/A (requires openssl)'
+
+
+def extract_key_algorithm(cert: dict) -> str:
+    """Extract public key algorithm."""
+    return cert.get('publicKeyAlgorithm', 'Unknown')
+
+
+def extract_key_size(cert: dict) -> Optional[int]:
+    """Extract public key size in bits."""
+    return cert.get('publicKeySizes', {}).get('RSA') or cert.get('publicKey', {}).get('size')
 
 
 def extract_basic_constraints(cert: dict) -> dict:

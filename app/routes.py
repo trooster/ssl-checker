@@ -3,7 +3,7 @@ Main request routes and API endpoints
 """
 from flask import Blueprint, render_template, request, jsonify, g, current_app, redirect, url_for, flash
 from .database import get_db
-from .ssl_checker import get_ssl_info, extract_domain
+from .ssl_checker import get_ssl_info, extract_domain, extract_readable_name
 from datetime import datetime
 
 
