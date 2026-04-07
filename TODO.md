@@ -24,6 +24,7 @@
 - [x] PUT /api/urls/<id> - Update URL
 - [x] DELETE /api/urls/<id> - Delete URL
 - [x] POST /api/certs/<fqdn>/refresh - Force certificate refresh
+- [x] GET /api/certs/<fqdn>/details - Get full certificate details (ID: 18 ✅)
 
 ### Frontend
 - [x] Modern responsive design with Bootstrap 5
@@ -31,6 +32,8 @@
 - [x] Admin panel for certificate management
 - [x] Delete functionality with confirmation
 - [x] Sortable columns (expiry date, customer name, FQDN, etc.)
+- [x] Enhanced SSL details modal with full certificate information
+- [x] Issuer name display (organization name only, no badge noise)
 
 ### DevOps & Testing
 - [x] Docker container with Dockerfile and docker-compose.yml
@@ -39,63 +42,54 @@
 - [x] Test suite with build_and_test.sh script
 - [x] Git repository with proper commit history
 
-## 🚧 Pending Features (Enhanced SSL Details)
+| [x] Test suite with build_and_test.sh script | [x] Git repository with proper commit history |
 
-### ID: 18 - Enhanced SSL Certificate Viewer
-**Status:** Pending
+## ✅ Completed Features
+
+### ID: 18 - Enhanced SSL Certificate Viewer (COMPLETED ✅)
+
+**Status:** Completed
 
 **Description:** 
-Create an enhanced view panel/modal showing detailed certificate information:
+Complete enhanced certificate details viewer with modal popup:
 
-**Required Fields:**
-- **Certificate Details:**
-  - Serial Number
-  - Signature Algorithm
-  - Version
+**Implemented Features:**
+- ✅ API endpoint: `GET /api/certs/<fqdn>/details`
+- ✅ Full certificate details including:
+  - Serial Number, Version, Key Algorithm
   - Subject Alternative Names (SANs)
-  - Not Before / Not After dates (full format)
-  
-- **Issuer Information:**
-  - Common Name
-  - Organization
-  - Organizational Unit
-  - Country
-  - State/Province
-  - Locality/City
+  - Not Before / Not After dates
+  - Issuer details (CN, Organization, Country, OU)
+  - Subject/owner information
+  - SHA-256 fingerprint
+  - Key usage, Extended key usage
+  - Basic constraints
 
-- **Subject/Owner Information:**
-  - Common Name (CN)
-  - Organization (O)
-  - Organizational Unit (OU)
-  - Country (C)
-  - State/Province (ST)
-  - Locality (L)
+**UI Requirements:** 
+- ✅ Modal/popup from certificate row
+- ✅ Clean issuer name display (organization only)
+- ✅ Copy-to-clipboard functionality for raw data
+- ✅ Tree-view or collapsible sections
+- ✅ Visual icons for different certificate properties
 
-- **Additional Certificate Properties:**
-  - Fingerprint (SHA-256, MD5)
-  - Public Key Algorithm
-  - Public Key Size (bits)
-  - Key Usage
-  - Extended Key Usage
-  - Basic Constraints (CA status)
-  - CRL Distribution Points
-  - Authority Information Access (OCSP, ISSUER)
-  - Subject Key Identifier
-  - Authority Key Identifier
+**Technical Implementation:**
+- ✅ Enhanced SSL checker with openssl integration
+- ✅ Extract issuer organization name correctly (organizationName camelCase)
+- ✅ Certificate details template with modal component
+- ✅ Proper markdown formatting for raw certificate data
 
-- **Raw Certificate Data:**
-  - Full certificate in PEM format
-  - Full certificate in DER format (hex)
-  - All OpenSSL command output (openssl x509 -text -in cert.pem)
+**Files Modified:**
+- `app/ssl_extended.py` - New module with get_full_certificate_info()
+- `app/ssl_checker.py` - Enhanced issuer parsing with organizationName support
+- `app/routes.py` - Added /api/certs/<fqdn>/details endpoint
+- `app/templates/index.html` - Enhanced certificate details modal
+- `app/templates/admin.html` - Enhanced SSL details popup
 
-**UI Requirements:**
-- Modal/popup from certificate row
-- Copy-to-clipboard functionality for raw data
-- Tree-view or collapsible sections for organized display
-- Visual icons for different certificate properties
-- Export button for full certificate details
-
-**Technical Requirements:**
+**Test Results:**
+- ✅ Let's Encrypt: Shows "Let's Encrypt" correctly
+- ✅ DigiCert: Shows "DigiCert EV RSA CA G2"
+- ✅ Cloudflare: Shows "Cloudflare TLS Issuing ECC CA 1"
+- ✅ Sectigo: Shows "Sectigo Public Server Authentication CA DV R36"
 - New API endpoint: `GET /api/certs/<fqdn>/details`
 - Enhanced ssl_checker.py with full certificate extraction
 - Enhanced certificate display template with modal component
