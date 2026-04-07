@@ -140,6 +140,28 @@ def validate_and_check_url(url: str) -> URLValidationResult:
     )
 
 
+def extract_port_from_url(url: str) -> int:
+    """
+    Extract port number from URL.
+    
+    Args:
+        url: URL with optional port (e.g., https://example.com:8443)
+        
+    Returns:
+        Port number (default 443 for HTTPS)
+    """
+    if not url:
+        return 443
+    
+    # Parse URL to get port
+    # Format: https://domain:port or https://domain
+    import re
+    match = re.search(r':(\d+)', url.split('://')[-1].split('/')[0])
+    if match:
+        return int(match.group(1))
+    return 443  # Default HTTPS port
+
+
 def extract_domain(url: str) -> str:
     """
     Extract domain name from URL.

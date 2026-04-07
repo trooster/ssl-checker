@@ -112,13 +112,16 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:  # (info, error_msg)
         Tuple of (certificate_info dict or None, error message)
         info contains: issuer, expiry_date, days_remaining, issuer_type, and full details
     """
+    from .url_utils import extract_port_from_url
+    
     try:
         # Extract domain from URL if full URL provided
         domain = extract_domain(fqdn)
+        port = extract_port_from_url(fqdn)
         
         # Connect to the SSL/TLS endpoint
         context = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=10) as sock:
+        with socket.create_connection((domain, port), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
         
