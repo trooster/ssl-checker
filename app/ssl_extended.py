@@ -29,10 +29,16 @@ def get_full_certificate_info(fqdn: str) -> Tuple[Optional[Dict], str]:
             return None, "Could not retrieve certificate"
         
         # Connect to SSL to get full details
+        from .url_utils import extract_port_from_url
         domain = extract_domain(fqdn)
+        port = extract_port_from_url(fqdn)
         
+        # Allow expired/invalid certificates to be read
         context = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=10) as sock:
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        with socket.create_connection((domain, port), timeout=10) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert = ssock.getpeercert()
                 

@@ -360,9 +360,12 @@ def delete_url(url_id):
         return jsonify({'error': str(e)}), 500
 
 
-@main_bp.route('/api/certs/<string:fqdn>/refresh', methods=['POST'])
+@main_bp.route('/api/certs/<string:fqdn>/refresh', methods=['GET', 'POST'])
 def refresh_cert(fqdn):
-    """API endpoint to force refresh SSL certificate for a specific domain"""
+    """Force refresh SSL certificate for a specific domain.
+    GET: redirects to index with flash message (for browser clicks)
+    POST: returns JSON response (for API calls)
+    """
     from .ssl_checker import extract_domain
     try:
         db = get_db()
@@ -414,21 +417,30 @@ def refresh_cert(fqdn):
             
             db.commit()
             
+            if request.method == 'GET':
+                flash(f'Certificate for {fqdn} refreshed successfully ({cert_info["days_remaining"]} days remaining)', 'success')
+                return redirect(url_for('main.index'))
+            
             return jsonify({
                 'success': True,
                 'message': 'Certificate refreshed',
                 'data': cert_info
             })
         else:
-            # Still return success but note that we couldn't fetch cert
+            if request.method == 'GET':
+                flash(f'Could not refresh certificate for {fqdn}: {error}', 'error')
+                return redirect(url_for('main.index'))
+            
             return jsonify({
-                'success': True,
-                'message': 'Certificate refresh attempted',
-                'data': None,
+                'success': False,
+                'message': 'Certificate refresh failed',
                 'error': error
             })
     
     except Exception as e:
+        if request.method == 'GET':
+            flash(f'Error refreshing {fqdn}: {str(e)}', 'error')
+            return redirect(url_for('main.index'))
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

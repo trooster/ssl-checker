@@ -107,7 +107,7 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:
         context.verify_mode = ssl.CERT_NONE
         
         with socket.create_connection((domain, port), timeout=10) as sock:
-            with context.wrap_socket(sock) as ssock:
+            with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 der_cert = ssock.getpeercert(binary_form=True)
                 
                 if not der_cert:
