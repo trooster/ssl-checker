@@ -80,8 +80,8 @@ def refresh_all_certificates():
         except Exception as e:
             print(f"✗ Error refreshing {fqdn}: {str(e)}")
     
-        db.commit()
-        print(f"\nRefresh complete. Updated {len(urls)} certificates.")
+    db.commit()
+    print(f"\nRefresh complete. Updated {len(urls)} certificates.")
 
 
 if __name__ == '__main__':

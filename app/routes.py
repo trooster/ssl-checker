@@ -464,7 +464,6 @@ def get_certificate_details(fqdn):
 def query_expiring():
     """
     API endpoint to query certificates expiring within N days
-    Used by MCP server for agent queries
     """
     days = request.args.get('days', 30, type=int)
     
@@ -516,7 +515,6 @@ def query_expiring():
 def query_expired():
     """
     API endpoint to query all expired certificates
-    Used by MCP server for agent queries
     """
     db = get_db()
     
@@ -567,7 +565,6 @@ def query_expired():
 def query_customer():
     """
     API endpoint to query certificates for a specific customer
-    Used by MCP server for agent queries
     """
     customer_name = request.args.get('name', '', type=str)
     
@@ -622,10 +619,9 @@ def query_customer():
 
 
 @main_bp.route('/api/status')
-def get_status():
+def status():
     """
     API endpoint to get server status
-    Used by MCP server for health checks
     """
     db = get_db()
     
