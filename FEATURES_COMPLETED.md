@@ -54,13 +54,8 @@
 |- 'expired' CSS class for row highlighting
 |- Expiry date shown correctly in the past
 
-### ✅ Feature #11: MCP Server Integration (ID 27)
-|- Native MCP SDK implementation using mcp.server module
-|- 8 MCP tools: add_certificate, list_certificates, get_certificate_details
-|- 8 MCP tools: refresh_certificate, delete_certificate, query_expiring, query_expired, query_customer
-|- Configuration in ~/.hermes/config.yaml
+### ✅ Feature #11: API Health Check (ID 27)
 |- /api/ping endpoint for health checks
-|- Docker MCP server support via stdio
 
 ## Documentation:
 

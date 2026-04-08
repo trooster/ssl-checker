@@ -89,20 +89,20 @@ def get_ssl_info_custom_port(fqdn: str, port: int = 443) -> Tuple[Optional[Dict]
 def extract_issuer_name(issuer_dict: list) -> str:
     """
     Extract issuer common name from certificate issuer list.
-    
+
     Args:
-        issuer_dict: Certificate issuer information as list of lists
-        
+        issuer_dict: Certificate issuer information as list of lists/tuples
+                     e.g., [['CN', 'Test CA'], ['O', 'Test Org']]
+
     Returns:
-        String with issuer name
+        String with issuer name (first value found)
     """
     if not issuer_dict:
         return 'Unknown'
-    
+
     # First entry is usually the CN
-    if issuer_dict[0]:
-        for entry in issuer_dict:
-            if entry:
-                return entry[0][1] if len(entry) > 1 and len(entry[0]) > 1 else str(entry)
-    
+    for entry in issuer_dict:
+        if entry and isinstance(entry, (list, tuple)) and len(entry) >= 2:
+            return str(entry[1])
+
     return 'Unknown'

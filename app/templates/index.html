@@ -241,7 +241,7 @@
                                            onclick="showCertificateDetails('{{ url.fqdn|replace('https://', '')|replace('http://', '') }}', {{ url.id }})">
                                             <i class="bi bi-eye-fill"></i>
                                         </a>
-                                        <a href="http://0.0.0.0:4444/api/certs/{{ url.fqdn|replace('/', '')|replace('/', '')|replace('/', '') }}/refresh" 
+                                        <a href="/api/certs/{{ url.fqdn|replace('https://', '')|replace('http://', '') }}/refresh" 
                                            class="btn btn-outline-info"
                                            title="Refresh Certificate">
                                             <i class="bi bi-arrow-clockwise"></i>

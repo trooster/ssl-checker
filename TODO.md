@@ -37,15 +37,10 @@
 |- [x] URL validation (format + reachability check)
 |- [x] Custom port support (default 443, e.g., :8443)
 |- [x] Expired certificate support (shows negative days_remaining)
-|- [x] MCP server for agent integration
+||- [x] API health check endpoint
 
-### MCP Integration
-|- [x] Native MCP SDK server implementation
-|- [x] 8 MCP tools: add_certificate, list_certificates, get_certificate_details
-|- [x] 8 MCP tools: refresh_certificate, delete_certificate, query_expiring, query_expired, query_customer
-|- [x] Configuration in ~/.hermes/config.yaml
+### Health Checks
 |- [x] /api/ping endpoint for health checks
-|- [x] Docker MCP server support via stdio
 
 ### DevOps & Testing
 - [x] Docker container with Dockerfile and docker-compose.yml
@@ -56,7 +51,7 @@
 
 ## 🔄 Pending Features
 
-(No pending features - all implemented features are complete. Slack notifications will be handled by external agents using the MCP server.)
+(No pending features - all implemented features are complete.)
 
 ## 📝 Notes
 
@@ -64,7 +59,4 @@
 - Implementation follows existing code patterns and style conventions
 - Database migrations handled through application versioning
 - Documentation updated after each feature implementation
-- Prioritize MCP server development for agent integration
 - Ensure backward compatibility with existing web interface
-- Include examples of agent queries and expected outputs
-- Plan for future MCP protocol extensions (real-time updates, etc.)
