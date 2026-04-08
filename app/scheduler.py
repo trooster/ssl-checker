@@ -5,7 +5,7 @@ import schedule
 import time
 from datetime import datetime
 from .database import get_db, close_db
-from .ssl_checker import get_ssl_info, should_refresh_cache
+from .ssl_checker import get_ssl_info
 
 
 def refresh_stale_certs():

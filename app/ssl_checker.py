@@ -102,7 +102,9 @@ def get_ssl_info(fqdn: str) -> Tuple[Optional[Dict], str]:
         domain = extract_domain(fqdn)
         port = extract_port_from_url(fqdn)
         
-        context = ssl._create_unverified_context()
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
         
         with socket.create_connection((domain, port), timeout=10) as sock:
             with context.wrap_socket(sock) as ssock:

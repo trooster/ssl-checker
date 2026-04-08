@@ -644,7 +644,7 @@ def status():
     
     return jsonify({
         'status': 'healthy',
-        'timestamp': '2024-04-07T00:00:00Z',
+        'timestamp': datetime.now().isoformat(),
         'certificates_monitored': cert_count,
         'expired_count': expired_count,
         'expiring_soon_count': expiring_count

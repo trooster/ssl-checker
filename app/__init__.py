@@ -5,7 +5,7 @@ A web application to monitor SSL certificate expiration dates for multiple domai
 
 from flask import Flask
 from .config import Config
-from .database import init_db
+from .database import init_db, close_db
 
 def create_app(config_class=None):
     app = Flask(__name__)
@@ -21,5 +21,8 @@ def create_app(config_class=None):
     # Register blueprints
     from .routes import main_bp
     app.register_blueprint(main_bp)
+    
+    # Register teardown handler for database cleanup
+    app.teardown_appcontext(close_db)
     
     return app

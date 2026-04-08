@@ -13,4 +13,4 @@ class Config:
         'warning': 12,      # 30-90 days: check every 12 hours
         'safe': 24          # > 90 days: check daily
     }
-    SLACK_WEBHOOK_URL = os.environ.get('SLACKWebhookURL', '')  # For future notifications
+    SLACK_WEBHOOK_URL = os.environ.get('SLACK_WEBHOOK_URL', '')  # For future notifications
