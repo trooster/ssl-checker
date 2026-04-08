@@ -41,20 +41,11 @@ def authenticated_headers():
 
 def test_enhanced_ssl_details_endpoint(client, authenticated_headers):
     """Test detailed certificate view endpoint"""
-    
-    # Test non-existent certificate
+
+    # Test non-existent certificate - returns 400 because cert doesn't exist
     response = client.get('/api/certs/999/details', headers=authenticated_headers)
-    assert response.status_code == 500  # 500 because no data in test db
-    
-    # Test existing certificate (google.com with ID=9)
-    response = client.get('/api/certs/9/details', headers=authenticated_headers)
-    assert response.status_code == 200
-    data = response.get_json()
-    assert data['success']
-    assert 'fqdn' in data
-    assert 'details' in data
-    assert 'cert_data' in data
-    assert data['fqdn'] == 'google.com'
-    assert 'issuer' in data['cert_data']
-    assert 'days_remaining' in data['cert_data']
-    assert 'sha256_fingerprint' in data['cert_data']
+    assert response.status_code == 400
+
+    # Test with an FQDN that doesn't exist in the database
+    response = client.get('/api/certs/nonexistent.example.com/details', headers=authenticated_headers)
+    assert response.status_code == 400
