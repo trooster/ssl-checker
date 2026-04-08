@@ -148,39 +148,6 @@
     {% endwith %}
 
     <div class="container-fluid mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <form action="/" method="GET" class="row g-3">
-                            <div class="col-md-3">
-                                <button type="submit" name="sort_by" value="days_remaining" 
-                                        class="btn btn-{{ 'primary' if sort_by == 'days_remaining' else 'outline-secondary' }} me-1">
-                                    Expires Soon
-                                </button>
-                                <button type="submit" name="sort_by" value="fqdn" 
-                                        class="btn btn-{{ 'primary' if sort_by == 'fqdn' else 'outline-secondary' }} me-1">
-                                    Domain
-                                </button>
-                                <button type="submit" name="sort_by" value="customer_name" 
-                                        class="btn btn-{{ 'primary' if sort_by == 'customer_name' else 'outline-secondary' }} me-1">
-                                    Customer
-                                </button>
-                            </div>
-                            <div class="col-md-9 text-end">
-                                <button type="submit" name="sort_order" value="asc"
-                                        class="btn btn-sm btn-outline-{{ 'primary' if sort_order == 'asc' else 'secondary' }} me-2">
-                                    <i class="bi bi-arrow-up"></i> Ascending
-                                </button>
-                                <button type="submit" name="sort_order" value="desc"
-                                        class="btn btn-sm btn-outline-{{ 'primary' if sort_order == 'desc' else 'secondary' }}">
-                                    <i class="bi bi-arrow-down"></i> Descending
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         {% if urls %}
         <div class="card">
